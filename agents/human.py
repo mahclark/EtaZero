@@ -1,4 +1,4 @@
-from agent import Agent
+from agents.agent import Agent
 
 class Human(Agent):
     name = "Player"

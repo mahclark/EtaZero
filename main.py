@@ -5,8 +5,8 @@ import time
 import sys
 import traceback
 from sevn import Game
-from random_agent import RandomAgent
-from human import Human
+from agents.random_agent import RandomAgent
+from agents.human import Human
 
 class ThreadPoolExecutorStackTraced(ThreadPoolExecutor):
     """
