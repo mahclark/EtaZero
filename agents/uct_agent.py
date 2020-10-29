@@ -17,7 +17,7 @@ class UCTAgent(Agent):
         self.tree_search = TreeSearch(game)
 
     def select_move(self):
-        best_move, score = self.tree_search.best_move(
+        best_move, score = self.tree_search.best_move_and_score(
             get_score=self._get_value
         )
         

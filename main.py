@@ -7,7 +7,7 @@ import traceback
 from sevn import Game, State, Score, Board
 from agents.random_agent import RandomAgent
 from agents.human import Human
-from agents.mcts_agent import MCTS
+from agents.mcts_agent import MinimaxMCTS
 from agents.uct_agent import UCTAgent
 
 class ThreadPoolExecutorTimedStackTraced(ThreadPoolExecutor):
@@ -44,6 +44,24 @@ class UserInput:
         self.selected = {} # All tiles selected by the user.
         self.terminate = False # Flag telling the human agent class whether to terminate or not once the signal is set.
 
+class Animations:
+
+    def __init__(self):
+        self.tiles = []
+
+    def animate(self, position, color):
+        self.tiles.append((position, color, 0))
+    
+    def step(self):
+        self.tiles = [
+            (position, color, lerp + 0.015)
+            for position, color, lerp in self.tiles
+            if lerp + 0.015 < 1
+        ]
+    
+    def done(self):
+        return len(self.tiles) == 0
+
 default_colors = {
     0: (237, 184, 121),
     1: (224, 127, 133),
@@ -62,8 +80,7 @@ if __name__ == "__main__":
 
     game.reset_search_game()
     player1 = UCTAgent(game.search_game)
-    # player1 = Human(game, user_input)
-    player2 = MCTS(game.search_game)
+    player2 = MinimaxMCTS(game.search_game)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2
@@ -83,7 +100,7 @@ if __name__ == "__main__":
     small_font = pygame.font.SysFont("Bahnschrift", 20)
     big_font = pygame.font.SysFont("Bahnschrift", 50)
 
-    animations = []
+    animations = Animations()
     x_size, y_size = 600, 600
     screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
     pygame.display.set_caption("Pygame Template")
@@ -112,12 +129,12 @@ if __name__ == "__main__":
                     user_input.signal.set()
         
         # ------------------------------------ Move making ------------------------------------
-        if len(animations) == 0 and game.state.outcome == 0 and agent_future.done():
+        if animations.done() and game.state.outcome == 0 and agent_future.done():
 
             user_input.selected.clear()
             move, time_taken = agent_future.result()
             for tile in move:
-                animations.append((tile, game.get_at(tile), 0, -1))
+                animations.animate(tile, game.get_at(tile))
             
             game.make_move(move)
             game.reset_search_game()
@@ -152,7 +169,7 @@ if __name__ == "__main__":
         def screen_to_board(x, y):
             return (x - int((x_size - board_size)/2), y - margin_size*2 - score_height)
 
-        if len(animations) == 0 and game.state.outcome != 0: # if someone has won
+        if animations.done() and game.state.outcome != 0: # if someone has won
             
             winner = player1 if game.state.outcome == 1 else player2
             
@@ -173,14 +190,9 @@ if __name__ == "__main__":
                     if tile >= 0: 
                         pygame.draw.rect(board_surf, default_colors[tile], (tile_size*col + 5, tile_size*row + 5, tile_size-10, tile_size-10))
             
-            animations = [
-                (pos, tile, lerp + 0.015, direction)
-                for pos, tile, lerp, direction in animations
-                if lerp + 0.015 < 1
-            ]
-
-            for pos, tile, lerp, direction in animations:
-                pygame.draw.rect(board_surf, default_colors[tile], (tile_size*pos[1] + 5 + (tile_size/2 - 5)*lerp, tile_size*pos[0] + 5 + (tile_size/2 - 5)*lerp, (tile_size-10)*(1 - lerp), (tile_size-10)*(1 - lerp)))
+            animations.step()
+            for pos, color, lerp in animations.tiles:
+                pygame.draw.rect(board_surf, default_colors[color], (tile_size*pos[1] + 5 + (tile_size/2 - 5)*lerp, tile_size*pos[0] + 5 + (tile_size/2 - 5)*lerp, (tile_size-10)*(1 - lerp), (tile_size-10)*(1 - lerp)))
         
         # Draw the player name labels
         unselected_col = (196, 187, 173)

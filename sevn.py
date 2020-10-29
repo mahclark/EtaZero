@@ -4,7 +4,7 @@ import time
 
 class Game:
     """
-    Defines the game logic.
+    Defines the game logic, state and string representation.
     """
 
     def __init__(self, base=7, state=None):
@@ -25,18 +25,34 @@ class Game:
         self.search_game = None # Game object used by agents to search the state tree
 
     def get_moves(self):
+        """
+        Returns all possible next moves for a game state.
+        """
         return self.state.board.get_moves()
     
     def get_takable(self):
+        """
+        Returns a set of (row, column) positions of tiles which are corner tiles i.e. can be taken next move.
+        """
         return self.state.board.get_takable()
     
     def get_at(self, a, b=None):
+        """
+        Returns the value of a tile at the position specified or -1 if no tile exists there.
+        """
         return self.state.board.get_at(a, b)
     
     def get_score(self, i):
+        """
+        Returns the current score of a colour.
+        """
         return self.state.score.score[i]
     
     def make_move(self, move):
+        """
+        Creates a new State (the result after the move has been made).
+        The states are memoised so they don't need to be recalculated.
+        """
         if move in self.state.children:
             self.state = self.state.children[move]
             return
@@ -54,15 +70,32 @@ class Game:
         self.state.parent.children[move] = self.state
     
     def undo_move(self):
+        """
+        Returns the game state to the previous state.
+        """
         self.state = self.state.parent
     
     def reset_search_game(self):
+        """
+        Ensures the state of self.search_game is the same as the current state.
+        """
         if not self.search_game:
             self.search_game = Game(self.base, self.state)
         self.search_game.state = self.state
     
     @staticmethod
     def from_str(s):
+        """
+        Parses the game state from a string representation.
+        Example starting state for a 3x3 board:
+            1/aaa/aab.cba.cbc
+            ^ ^   ^
+            | |   board state with rows separated by . and a=0, b=1,... for the tile values
+            | score state with a=0, b=1,... and the index corresponding to color.
+            the player who's turn it is next; can be 1 or 2.
+        A negative score value is preceeded by -
+        An empty cell or a sequence of empty cells on the same row is denoted by the number of consequtive empty cells.
+        """
         parts = s.split('/')
         if len(parts) != 3:
             raise Exception("Must have 3 parts separated by '/'.")
@@ -87,20 +120,28 @@ class Game:
         )
 
 class Board:
+    """
+    Immutable representation of the game board and all the tiles.
+    """
     def __init__(self, base, board=None):
         self.base = base
 
         if board == None:
+            # Randomly generate a board assignment
             tiles = [i % base for i in range(base**2)]
             shuffle(tiles)
-            self.board = [[tiles.pop() for _ in range(base)] for _ in range(base)]
-        else:
-            self.board = board
+            board = [[tiles.pop() for _ in range(base)] for _ in range(base)]
         
-        self.board = tuple([tuple(row) for row in self.board])
+        self.board = tuple([tuple(row) for row in board])
         
-        self.empty = sum([sum(row) for row in self.board]) == -base**2
+        # Empty if all cells have value -1
+        self.empty = sum([
+            board[row][col] != -1
+            for row in range(base)
+            for col in range(base)
+        ]) == 0
         
+        # List of all corner tiles
         self.takable = [
             (row, col)
             for row in range(self.base)
@@ -110,6 +151,7 @@ class Board:
             and (self.get_at(row, col-1) == -1 or self.get_at(row, col+1) == -1)
         ]
 
+        # Dictionary of colors -> list of takable tiles of that color.
         takable_colors = {
             i: [
                 tile
@@ -119,6 +161,7 @@ class Board:
             for i in range(self.base)
         }
 
+        # All possible next moves.
         self.moves = {
             frozenset(comb)
             for tiles in takable_colors.values()
@@ -129,6 +172,9 @@ class Board:
     
     @staticmethod
     def _all_combs(a):
+        """
+        Returns a list of all ways to take any number > 0 of members of a.
+        """
         combs = []
         for b in range(1, 2**len(a)):
             combs.append({
@@ -210,6 +256,28 @@ class Board:
         Board.validate(board)
         
         return Board(base, board)
+    
+    def __str__(self):
+        rows = []
+        for row in self.board:
+            r = ""
+            blank_counter = 0
+
+            for tile in row:
+                if tile == -1:
+                    blank_counter += 1
+                else:
+                    if blank_counter > 0:
+                        r += str(blank_counter)
+                        blank_counter = 0
+                    r += chr(ord('a') + tile)
+
+            if blank_counter > 0:
+                r += str(blank_counter)
+                blank_counter = 0
+            
+            rows.append(r)
+        return ".".join(rows)
 
     def __hash__(self):
         return self.hash_val
@@ -221,6 +289,9 @@ class Board:
         return not self.__eq__(other)
 
 class Score:
+    """
+    Immutable representation of the score of the game.
+    """
     def __init__(self, base, score=None):
         self.base = base
 
@@ -229,13 +300,14 @@ class Score:
         else:
             self.score = tuple(score)
         
-        if sum([abs(x) > self.base for x in self.score]) > 0:
-            raise Exception("Internal error: score exceeded base number {}.".format(self.base))
-        
-        if sum([abs(x) == self.base for x in self.score]) > 1:
-            raise Exception("Internal error: multiple colors have been entirely captured by a player. Score:" + str(self.score))
+        self.validate(score)
+        if len(score) != base:
+            raise Exception("The score must have the same number of items as the base number.\nBase: {0}\nItems: {1}".format(base, len(score)))
 
+        # 1 if player1 has captured all of a colour, -1 if player2, else 0
         self.player_with_all = sum([int(x/self.base) for x in self.score])
+
+        # The number of colors the two players have the majority in.
         self.score_pair = (
             sum([x > 0 for x in self.score]),
             sum([x < 0 for x in self.score])
@@ -270,6 +342,9 @@ class Score:
 
         if sum([abs(x) > base for x in score]) > 0:
             raise Exception("Score cannot have values > base number.")
+        
+        if sum([abs(x) == base for x in score]) > 1:
+            raise Exception("At most one score value can be the base number.")
 
     @staticmethod
     def from_str(s):
@@ -292,6 +367,13 @@ class Score:
         
         return Score(len(score), score)
     
+    def __str__(self):
+        s = ""
+        for x in self.score:
+            s += ("-" if x < 0 else "") + chr(ord('a') + abs(x))
+
+        return s
+
     def __hash__(self):
         return self.hash_val
     
@@ -302,6 +384,10 @@ class Score:
         return not self.__eq__(other)
 
 class State:
+    """
+    Representation of the game state.
+    Immutable except self.children.
+    """
     def __init__(self, board, score, next_go, parent=None):
         self.board = board
         self.score = score
@@ -331,32 +417,10 @@ class State:
         s = str(int((3 - self.next_go)/2)) + "/"
 
         # Score
-        for x in self.score.score:
-            s += ("-" if x < 0 else "") + chr(ord('a') + abs(x))
-        
-        s += "/"
+        s += str(self.score) + "/"
         
         # Board
-        rows = []
-        for row in self.board.board:
-            r = ""
-            blank_counter = 0
-
-            for tile in row:
-                if tile == -1:
-                    blank_counter += 1
-                else:
-                    if blank_counter > 0:
-                        r += str(blank_counter)
-                        blank_counter = 0
-                    r += chr(ord('a') + tile)
-
-            if blank_counter > 0:
-                r += str(blank_counter)
-                blank_counter = 0
-            
-            rows.append(r)
-        s += ".".join(rows)
+        s += str(self.board)
 
         return s
             

@@ -8,6 +8,12 @@ class Human(Agent):
         self.user_input = user_input
 
     def select_move(self):
+        """
+        Returns when the user_input signal is set and either:
+            - terminate is set to true
+            - a valid move has been chosen
+        """
+
         if self.user_input == None:
             raise Exception("Human agents must be initialised with 'user_input'.")
 

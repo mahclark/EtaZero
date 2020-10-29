@@ -1,6 +1,9 @@
 
 
 class Agent:
+    """
+    An abstract class to be inherited by any agent to play the game.
+    """
     name = "Agent"
     confidence = None
 
@@ -13,7 +16,7 @@ class Agent:
         raise Exception("select_move() not implemented!")
 
     def set_confidence(self, x):
-        self.confidence = str(int(x*1000)/10) + "%"
+        self.confidence = f"{100*x:.1f}%"
     
     def get_progress(self):
         return None
