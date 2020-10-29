@@ -4,11 +4,13 @@ import pygame
 import time
 import sys
 import traceback
-from sevn import Game
+from sevn import Game, State, Score, Board
 from agents.random_agent import RandomAgent
 from agents.human import Human
+from agents.mcts_agent import MCTS
+from agents.uct_agent import UCTAgent
 
-class ThreadPoolExecutorStackTraced(ThreadPoolExecutor):
+class ThreadPoolExecutorTimedStackTraced(ThreadPoolExecutor):
     """
     A ThreadPoolExecutor which displays a traceback when an exception is thrown during thread execution.
     Taken from: https://stackoverflow.com/a/24457608.
@@ -17,7 +19,9 @@ class ThreadPoolExecutorStackTraced(ThreadPoolExecutor):
     def submit(self, fn, *args, **kwargs):
         """Submits the wrapped function instead of `fn`"""
 
-        return super(ThreadPoolExecutorStackTraced, self).submit(
+        self.start_time = time.time()
+
+        return super(ThreadPoolExecutorTimedStackTraced, self).submit(
             self._function_wrapper, fn, *args, **kwargs)
 
     def _function_wrapper(self, fn, *args, **kwargs):
@@ -26,7 +30,7 @@ class ThreadPoolExecutorStackTraced(ThreadPoolExecutor):
 
         """
         try:
-            return fn(*args, **kwargs)
+            return (fn(*args, **kwargs), time.time() - self.start_time)
         except Exception:
             raise sys.exc_info()[0](traceback.format_exc())
 
@@ -52,16 +56,26 @@ default_colors = {
 
 if __name__ == "__main__":
     base = 5
-    game = Game(base)
+    game = Game.from_str("1/cdca-e/2d2.2ac1.1dbaa.1ddcb.1dec1")#(base)
 
     user_input = UserInput()
 
-    player1 = RandomAgent(game)
-    player2 = Human(game, user_input)
+    game.reset_search_game()
+    player1 = UCTAgent(game.search_game)
+    # player1 = Human(game, user_input)
+    player2 = MCTS(game.search_game)
 
-    next_player = player1
+    name_width = max(len(player1.name), len(player2.name)) + 4
+    result_width = 3 + 2*base + base**2
 
-    agent_executor = ThreadPoolExecutorStackTraced()
+    print(game.state)
+    print(f"{' Name':<{name_width}}{'Time':<10}Result")
+    print("-"*(name_width + 10 + result_width))
+    print(" "*(name_width + 10) + str(game.state))
+
+    next_player = player1 if game.state.next_go == 1 else player2
+
+    agent_executor = ThreadPoolExecutorTimedStackTraced()
     agent_future = agent_executor.submit(next_player.select_move)
 
     pygame.init()
@@ -99,14 +113,21 @@ if __name__ == "__main__":
         
         # ------------------------------------ Move making ------------------------------------
         if len(animations) == 0 and game.state.outcome == 0 and agent_future.done():
+
             user_input.selected.clear()
-            move = agent_future.result()
+            move, time_taken = agent_future.result()
             for tile in move:
                 animations.append((tile, game.get_at(tile), 0, -1))
+            
             game.make_move(move)
+            game.reset_search_game()
+
+            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s  ':>10}{str(game.state)}")
             next_player = player1 if game.state.next_go == 1 else player2
+
             if game.state.outcome == 0:
                 agent_future = agent_executor.submit(next_player.select_move)
+                start_time = time.time()
 
         # ------------------------------------- Rendering -------------------------------------
         screen.fill([177, 161, 179])
@@ -180,8 +201,19 @@ if __name__ == "__main__":
         score_surf.blit(p1_label, p1_label_rect)
         score_surf.blit(p2_label, p2_label_rect)
 
-        pygame.draw.line(score_surf, p1_color, (0, 30), (int((score_width - cell_size)/2), 30), 2)
-        pygame.draw.line(score_surf, p2_color, (int((score_width + cell_size)/2), 30), (score_width, 30), 2)
+        progress = next_player.get_progress()
+
+        if progress and next_player == player1:
+            pygame.draw.line(score_surf, unselected_col, (0, 30), (int((score_width - cell_size)/2), 30), 2)
+            pygame.draw.line(score_surf, selected_col, (0, 30), (int(progress*(score_width - cell_size)/2), 30), 2)
+        else:
+            pygame.draw.line(score_surf, p1_color, (0, 30), (int((score_width - cell_size)/2), 30), 2)
+
+        if progress and next_player == player2:
+            pygame.draw.line(score_surf, unselected_col, (int((score_width + cell_size)/2), 30), (score_width, 30), 2)
+            pygame.draw.line(score_surf, selected_col, (int((score_width + cell_size)/2 + (1-progress)*(score_width - cell_size)/2), 30), (score_width, 30), 2)
+        else:
+            pygame.draw.line(score_surf, p2_color, (int((score_width + cell_size)/2), 30), (score_width, 30), 2)
 
         # Draw the score grid
         grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
@@ -210,6 +242,23 @@ if __name__ == "__main__":
 
         score_surf.blit(p1_score_label, p1_score_label_rect)
         score_surf.blit(p2_score_label, p2_score_label_rect)
+
+        # Draw the confidences
+        if player1.confidence != None:
+            confidence_label = small_font.render(str(player1.confidence), 1, [255,255,255])
+
+            confidence_label_rect = confidence_label.get_rect()
+            confidence_label_rect.bottomleft = (0, score_height)
+        
+            score_surf.blit(confidence_label, confidence_label_rect)
+        
+        if player2.confidence != None:
+            confidence_label = small_font.render(str(player2.confidence), 1, [255,255,255])
+
+            confidence_label_rect = confidence_label.get_rect()
+            confidence_label_rect.bottomright = (score_width, score_height)
+        
+            score_surf.blit(confidence_label, confidence_label_rect)
         
         # Blit the surfaces on the screen
         screen.blit(score_surf, (int((x_size - score_width)/2), margin_size))
