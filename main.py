@@ -74,21 +74,23 @@ default_colors = {
 
 if __name__ == "__main__":
     base = 5
-    game = Game.from_str("1/cdca-e/2d2.2ac1.1dbaa.1ddcb.1dec1")#(base)
+    # game = Game(base)
+    game = Game.from_str("1/aaaaa/eccda.bdcbb.bacba.ddecd.eaeea")
 
     user_input = UserInput()
 
     game.reset_search_game()
-    player1 = UCTAgent(game.search_game)
-    player2 = MinimaxMCTS(game.search_game)
+    player2 = UCTAgent(game.search_game)
+    # player1 = MinimaxMCTS(game.search_game)
+    player1 = Human(game.search_game, user_input)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2
 
     print(game.state)
-    print(f"{' Name':<{name_width}}{'Time':<10}Result")
-    print("-"*(name_width + 10 + result_width))
-    print(" "*(name_width + 10) + str(game.state))
+    print(f"{' Name':<{name_width}}{'Time':<10}{'Confidence':<11}Result")
+    print("-"*(name_width + 21 + result_width))
+    print(" "*(name_width + 21) + str(game.state))
 
     next_player = player1 if game.state.next_go == 1 else player2
 
@@ -139,7 +141,9 @@ if __name__ == "__main__":
             game.make_move(move)
             game.reset_search_game()
 
-            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s  ':>10}{str(game.state)}")
+            confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
+
+            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s  ':>10}{confidence_str}{str(game.state)}")
             next_player = player1 if game.state.next_go == 1 else player2
 
             if game.state.outcome == 0:

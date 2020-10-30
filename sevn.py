@@ -296,9 +296,11 @@ class Score:
         self.base = base
 
         if score == None:
-            self.score = tuple([0 for _ in range(base)])
+            score = tuple([0 for _ in range(base)])
         else:
-            self.score = tuple(score)
+            score = tuple(score)
+        
+        self.score = score
         
         self.validate(score)
         if len(score) != base:
@@ -423,7 +425,9 @@ class State:
         s += str(self.board)
 
         return s
-            
+    
+    def __repr__(self):
+        return self.__str__()
 
     def __hash__(self):
         return self.hash_val

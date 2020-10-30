@@ -82,16 +82,17 @@ class TreeSearch:
         """
         return self.best_move_and_score(get_score)[0]
     
-    def get_progress(self):
+    @staticmethod
+    def get_progress(progress_layers):
         """
         Returns the total progress as defined in constructor above.
         """
-        if len(self.progress_layers) == 0:
+        if len(progress_layers) == 0:
             return 1
         
         progress = 0
         scale = 1
-        for p, n in self.progress_layers:
+        for p, n in progress_layers:
             progress += scale*p/n
             scale *= 1/n
         
