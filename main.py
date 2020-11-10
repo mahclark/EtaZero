@@ -9,6 +9,10 @@ from agents.random_agent import RandomAgent
 from agents.human import Human
 from agents.mcts_agent import MinimaxMCTS
 from agents.uct_agent import UCTAgent
+from agents.eta_zero import EtaZero
+from networks.dummy_networks import DummyPVNetwork
+
+# from screen_parsing import simple_plotter
 
 class ThreadPoolExecutorTimedStackTraced(ThreadPoolExecutor):
     """
@@ -62,6 +66,7 @@ class Animations:
     def done(self):
         return len(self.tiles) == 0
 
+# default_colors = simple_plotter.get_colors()
 default_colors = {
     0: (237, 184, 121),
     1: (224, 127, 133),
@@ -73,29 +78,34 @@ default_colors = {
 }
 
 if __name__ == "__main__":
-    base = 5
-    # game = Game(base)
-    game = Game.from_str("1/aaaaa/eccda.bdcbb.bacba.ddecd.eaeea")
+    base = 7
+    game = Game(base#,
+        # State(
+        #     Board(base, simple_plotter.get_board()),
+        #     Score(7),
+        #     1
+        # )
+    )
+    # game = Game.from_str("2/c-eae-b/5.3a1.1ebc1.2d2.2e2")
 
     user_input = UserInput()
 
     game.reset_search_game()
-    player2 = UCTAgent(game.search_game)
+    player1 = EtaZero(game.search_game, DummyPVNetwork())
     # player1 = MinimaxMCTS(game.search_game)
-    player1 = Human(game.search_game, user_input)
+    player2 = Human(game.search_game, user_input)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2
 
     print(game.state)
-    print(f"{' Name':<{name_width}}{'Time':<10}{'Confidence':<11}Result")
-    print("-"*(name_width + 21 + result_width))
-    print(" "*(name_width + 21) + str(game.state))
+    print(f"{' Name':<{name_width}}{'Time':<10}{'Confidence':<11}{'Playouts':<11}Result")
+    print("-"*(name_width + 32 + result_width))
+    print(" "*(name_width + 32) + str(game.state))
 
     next_player = player1 if game.state.next_go == 1 else player2
 
     agent_executor = ThreadPoolExecutorTimedStackTraced()
-    agent_future = agent_executor.submit(next_player.select_move)
 
     pygame.init()
 
@@ -105,7 +115,9 @@ if __name__ == "__main__":
     animations = Animations()
     x_size, y_size = 600, 600
     screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
-    pygame.display.set_caption("Pygame Template")
+    pygame.display.set_caption("Sevn")
+
+    agent_future = agent_executor.submit(next_player.select_move)
 
     clock = pygame.time.Clock()
     anim_done = True
@@ -137,18 +149,18 @@ if __name__ == "__main__":
             move, time_taken = agent_future.result()
             for tile in move:
                 animations.animate(tile, game.get_at(tile))
+
+            confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
+            playouts_str = " "*11 if not next_player.playouts_played else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
             
             game.make_move(move)
             game.reset_search_game()
 
-            confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
-
-            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s  ':>10}{confidence_str}{str(game.state)}")
+            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s ':>10}{confidence_str}{playouts_str}{str(game.state)}")
             next_player = player1 if game.state.next_go == 1 else player2
 
             if game.state.outcome == 0:
                 agent_future = agent_executor.submit(next_player.select_move)
-                start_time = time.time()
 
         # ------------------------------------- Rendering -------------------------------------
         screen.fill([177, 161, 179])

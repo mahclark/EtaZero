@@ -6,6 +6,7 @@ class Agent:
     """
     name = "Agent"
     confidence = None
+    playouts_played = None
 
     def __init__(self, game, num=None):
         self.game = game

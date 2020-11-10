@@ -82,11 +82,13 @@ class TreeSearch:
         """
         return self.best_move_and_score(get_score)[0]
     
-    @staticmethod
-    def get_progress(progress_layers):
+    def get_progress(self, progress_layers=None):
         """
         Returns the total progress as defined in constructor above.
         """
+        if not progress_layers:
+            progress_layers = self.progress_layers
+
         if len(progress_layers) == 0:
             return 1
         

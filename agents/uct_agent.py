@@ -6,8 +6,8 @@ from tree_search import TreeSearch
 class UCTAgent(Agent):
 
     name = "UCT Agent"
-    C = 0.1
-    n = 1000
+    C = 0.5
+    playouts_per_move = 100
 
     def __init__(self, game, num=None):
         super().__init__(game, num)
@@ -18,41 +18,36 @@ class UCTAgent(Agent):
         self.move_progress = 0
 
     def select_move(self):
+        self.playouts_played = 0
+
+        tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(7) for x in range(7)])
+
+        self.playouts_per_move = int((400 + 0.01*(49 - tiles)**3.6)/len(self.game.get_moves()))
         
         best_move, score = self.tree_search.best_move_and_score(
             get_score=self._get_value
         )
         
         self.set_confidence((score*self.game.state.next_go + 1)/2)
-        
-        # m = 0
-        # count = {}
-        # for _, visits in self.visits.items():
-        #     count[visits] = count.get(visits, 0) + 1
-        #     if visits > m:
-        #         m = visits
-        
-        # for i in range(m+1):
-        #     if i in count:
-        #         print("{0}\t{1}".format(i, count[i]))
 
         return best_move
     
 
     def _get_value(self):
         playouts = []
-        for i in range(self.n):
+        for i in range(self.playouts_per_move):
             self.move_progress = i
             playouts.append(
-            self.tree_search.playout(
-                pre_fn=self._pre_fn,
-                choice_fn=functools.partial(
-                    self.tree_search.best_move,
-                    self._get_heuristic
-                ),
-                record_val=self._record_state
+                self.tree_search.playout(
+                    pre_fn=self._pre_fn,
+                    choice_fn=functools.partial(
+                        self.tree_search.best_move,
+                        self._get_heuristic
+                    ),
+                    record_val=self._record_state
             ))
-        return sum(playouts)/self.n
+            self.playouts_played += 1
+        return sum(playouts)/self.playouts_per_move
     
     def _pre_fn(self):
         self.visits[self.game.state] = self.visits.get(self.game.state, 0) + 1
@@ -90,4 +85,4 @@ class UCTAgent(Agent):
         return (s_i/n_i + self.C*sqrt(log(N)/n_i)) * prev_player
     
     def get_progress(self):
-        return self.tree_search.get_progress(self.tree_search.progress_layers[:1] + [(self.move_progress, self.n)])
+        return self.tree_search.get_progress(self.tree_search.progress_layers[:1] + [(self.move_progress, self.playouts_per_move)])

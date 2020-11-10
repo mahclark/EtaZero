@@ -48,6 +48,9 @@ class Game:
         """
         return self.state.score.score[i]
     
+    def over(self):
+        return self.state.outcome != 0
+    
     def make_move(self, move):
         """
         Creates a new State (the result after the move has been made).
@@ -103,7 +106,7 @@ class Game:
         if parts[0] not in ["1", "2"]:
             raise Exception("Expected first part to be 1 or 2; got {}.".format(parts[0]))
 
-        next_go = int(parts[0])
+        next_go = 3 - 2*int(parts[0])
         score = Score.from_str(parts[1])
         board = Board.from_str(parts[2])
 
