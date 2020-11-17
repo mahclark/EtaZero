@@ -16,22 +16,26 @@ from networks.dummy_networks import DummyPVNetwork
 
 class ThreadPoolExecutorTimedStackTraced(ThreadPoolExecutor):
     """
-    A ThreadPoolExecutor which displays a traceback when an exception is thrown during thread execution.
-    Taken from: https://stackoverflow.com/a/24457608.
+    A ThreadPoolExecutor with two modifications:
+        - returns a pair of (return value, time taken)
+        - displays a traceback when an exception is thrown during thread execution
+    Modified from: https://stackoverflow.com/a/24457608.
     """
 
     def submit(self, fn, *args, **kwargs):
-        """Submits the wrapped function instead of `fn`"""
-
+        """
+        Submits the wrapped function instead of `fn`.
+        Starts the timer.
+        """
         self.start_time = time.time()
 
         return super(ThreadPoolExecutorTimedStackTraced, self).submit(
             self._function_wrapper, fn, *args, **kwargs)
 
     def _function_wrapper(self, fn, *args, **kwargs):
-        """Wraps `fn` in order to preserve the traceback of any kind of
-        raised exception
-
+        """
+        Wraps `fn` in order to preserve the traceback of any kind of raised exception.
+        Returns the value returned by the function and the time it took to execute.
         """
         try:
             return (fn(*args, **kwargs), time.time() - self.start_time)
@@ -49,6 +53,9 @@ class UserInput:
         self.terminate = False # Flag telling the human agent class whether to terminate or not once the signal is set.
 
 class Animations:
+    """
+    A structure to keep track of tiles which are animating.
+    """
 
     def __init__(self):
         self.tiles = []
@@ -77,29 +84,43 @@ default_colors = {
     6: (136, 159, 175)
 }
 
+"""
+This file instantiates two agents and plays them against each other.
+It is responsible for rendering the game visuals and asking agents for their moves.
+"""
+
 if __name__ == "__main__":
     base = 7
-    game = Game(base#,
-        # State(
-        #     Board(base, simple_plotter.get_board()),
-        #     Score(7),
-        #     1
-        # )
-    )
+    
+    ### Random game state
+    game = Game(base)
+    
+    ### Game state from a board
+    # game = Game(
+    #     base,
+    #     State(
+    #         Board(base, simple_plotter.get_board()),
+    #         Score(base),
+    #         1
+    #     )
+    # )
+
+    ### Game state from string representation
     # game = Game.from_str("2/c-eae-b/5.3a1.1ebc1.2d2.2e2")
 
     user_input = UserInput()
 
     game.reset_search_game()
-    player1 = EtaZero(game.search_game, DummyPVNetwork())
-    # player1 = MinimaxMCTS(game.search_game)
+    player1 = UCTAgent(game.search_game)#, DummyPVNetwork())
     player2 = Human(game.search_game, user_input)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2
 
-    print(game.state)
-    print(f"{' Name':<{name_width}}{'Time':<10}{'Confidence':<11}{'Playouts':<11}Result")
+    def pprint_row(name, time, confidence, playouts, result):
+        print(f"{' '+name:<{name_width}}{time:<10}{confidence:<11}{playouts:<11}{result}")
+
+    pprint_row("Name", "Time", "Confidence", "Playouts", "Result")
     print("-"*(name_width + 32 + result_width))
     print(" "*(name_width + 32) + str(game.state))
 
@@ -149,14 +170,21 @@ if __name__ == "__main__":
             move, time_taken = agent_future.result()
             for tile in move:
                 animations.animate(tile, game.get_at(tile))
-
-            confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
-            playouts_str = " "*11 if not next_player.playouts_played else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
             
             game.make_move(move)
             game.reset_search_game()
+            
+            confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
+            playouts_str = " "*11 if not next_player.playouts_played else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
 
-            print(f"{' '+next_player.name:<{name_width}}{'%.2f'%time_taken+'s ':>10}{confidence_str}{playouts_str}{str(game.state)}")
+            pprint_row(
+                name=next_player.name,
+                time=f"{'%.2f'%time_taken+'s '}",
+                confidence=confidence_str,
+                playouts=playouts_str,
+                result=str(game.state)
+            )
+            
             next_player = player1 if game.state.next_go == 1 else player2
 
             if game.state.outcome == 0:
