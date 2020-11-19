@@ -1,6 +1,8 @@
+import torch
+import dgl
+import numpy as np
+from typing import NamedTuple
 from random import shuffle
-import pygame
-import time
 
 class Game:
     """
@@ -46,7 +48,7 @@ class Game:
         """
         Returns the current score of a colour.
         """
-        return self.state.score.score[i]
+        return self.state.score.get_score(i)
     
     def over(self):
         return self.state.outcome != 0
@@ -89,37 +91,14 @@ class Game:
     @staticmethod
     def from_str(s):
         """
-        Parses the game state from a string representation.
-        Example starting state for a 3x3 board:
-            1/aaa/aab.cba.cbc
-            ^ ^   ^
-            | |   board state with rows separated by . and a=0, b=1,... for the tile values
-            | score state with a=0, b=1,... and the index corresponding to color.
-            the player who's turn it is next; can be 1 or 2.
-        A negative score value is preceeded by -
-        An empty cell or a sequence of empty cells on the same row is denoted by the number of consequtive empty cells.
+        Creates a game beginning from the string representation of a state.
         """
-        parts = s.split('/')
-        if len(parts) != 3:
-            raise Exception("Must have 3 parts separated by '/'.")
 
-        if parts[0] not in ["1", "2"]:
-            raise Exception("Expected first part to be 1 or 2; got {}.".format(parts[0]))
-
-        next_go = 3 - 2*int(parts[0])
-        score = Score.from_str(parts[1])
-        board = Board.from_str(parts[2])
-
-        if score.base != board.base:
-            raise Exception("Score and board must have the same base number.")
+        state = State.from_str(s)
 
         return Game(
-            score.base,
-            State(
-                board,
-                score,
-                next_go
-            )
+            state.score.base,
+            state
         )
 
 class Board:
@@ -336,6 +315,9 @@ class Score:
     def get_player_with_all(self):
         return self.player_with_all
     
+    def get_score(self, i):
+        return self.score[i]
+    
     def get_score_pair(self):
         return self.score_pair
     
@@ -441,6 +423,158 @@ class State:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    @staticmethod
+    def from_str(s):
+        """
+        Parses the game state from a string representation.
+        Example starting state for a 3x3 board:
+            1/aaa/aab.cba.cbc
+            ^ ^   ^
+            | |   board state with rows separated by . and a=0, b=1,... for the tile values
+            | score state with a=0, b=1,... and the index corresponding to color.
+            the player who's turn it is next; can be 1 or 2.
+        A negative score value is preceeded by -
+        An empty cell or a sequence of empty cells on the same row is denoted by the number of consequtive empty cells.
+        """
+        parts = s.split('/')
+        if len(parts) != 3:
+            raise Exception("Must have 3 parts separated by '/'.")
+
+        if parts[0] not in ["1", "2"]:
+            raise Exception("Expected first part to be 1 or 2; got {}.".format(parts[0]))
+
+        next_go = 3 - 2*int(parts[0])
+        score = Score.from_str(parts[1])
+        board = Board.from_str(parts[2])
+
+        if score.base != board.base:
+            raise Exception("Score and board must have the same base number.")
+
+        return State(board, score, next_go)
+    
+    def to_dgl_graph(self):
+        class Pos(NamedTuple):
+            row: int
+            col: int
+            
+            def left(self):
+                return Pos(self.row-1, self.col)
+            def right(self):
+                return Pos(self.row+1, self.col)
+            def up(self):
+                return Pos(self.row, self.col-1)
+            def down(self):
+                return Pos(self.row, self.col+1)
+
+        class Relation(NamedTuple):
+            src: list
+            dst: list
+
+            def add(self, u, v, two_way=False):
+                self.src.append(u)
+                self.dst.append(v)
+                if two_way:
+                    self.src.append(v)
+                    self.dst.append(u)
+
+        hidden_bys = Relation([],[])
+        reveals = Relation([],[])
+        diagonals = Relation([],[])
+        takables = Relation([],[])
+        same_color = Relation([],[])
+
+        features = []
+
+        index_map = {} # from board pos to node index
+
+        takable_set = set()
+        color_sets = {}
+
+        # Assign the index map and build the node features
+        # [player’s colour score, opponent’s colour score, score difference]
+        for row in range(self.board.base):
+            for col in range(self.board.base):
+                pos = Pos(row, col)
+                tile = self.board.get_at(pos)
+                if tile > -1:
+                    index_map[pos] = len(features)
+
+                    color_set = color_sets.get(tile, set())
+                    color_set.add(pos)
+                    color_sets[tile] = color_set
+
+                    if pos in self.board.get_takable():
+                        takable_set.add(pos)
+
+                    score_pair = self.score.get_score_pair()
+
+                    features.append([
+                        self.board.base - self.score.get_score(tile)*self.next_go,
+                        self.board.base + self.score.get_score(tile)*self.next_go,
+                        (score_pair[0] - score_pair[1])*self.next_go
+                    ])
+
+        # Add all positional relations
+        for pos, index in index_map.items():
+            if pos not in self.board.get_takable():
+                blocked_h = self.board.get_at(pos.left()) > -1 and self.board.get_at(pos.right()) > -1
+                blocked_v = self.board.get_at(pos.up()) > -1 and self.board.get_at(pos.down()) > -1
+
+                assert blocked_h or blocked_v
+
+                if blocked_h:
+                    left = index_map[pos.left()]
+                    right = index_map[pos.right()]
+
+                    hidden_bys.add(index, left)
+                    hidden_bys.add(index, right)
+                    reveals.add(left, index)
+                    reveals.add(right, index)
+                
+                if blocked_v:
+                    up = index_map[pos.up()]
+                    down = index_map[pos.down()]
+
+                    hidden_bys.add(index, up)
+                    hidden_bys.add(index, down)
+                    reveals.add(up, index)
+                    reveals.add(down, index)
+                
+                if blocked_h and blocked_v:
+                    diagonals.add(left, up, two_way=True)
+                    diagonals.add(up, right, two_way=True)
+                    diagonals.add(right, down, two_way=True)
+                    diagonals.add(down, left, two_way=True)
+
+        # Densely connect all same color nodes and all takable nodes.
+        for relation_set, relation in [(color_set, same_color) for color_set in color_sets.values()] + [(takable_set, takables)]:
+            for u in relation_set:
+                for v in relation_set:
+                    if u != v:
+                        relation.add(index_map[u], index_map[v])
+
+        graph_data = {
+            ("tile", "0_hidden_by", "tile") : hidden_bys,
+            ("tile", "1_reveals", "tile") : reveals,
+            ("tile", "2_diagonals", "tile") : diagonals,
+            ("tile", "3_takables", "tile") : takables,
+            ("tile", "4_same_color", "tile") : same_color,
+        }
+        
+        graph = dgl.heterograph(graph_data)
+
+        edge_type = torch.tensor([
+            n
+            for n, etype in enumerate(graph.etypes)
+            for _ in range(graph.num_edges(etype=etype))
+        ])
+
+        graph = dgl.to_homogeneous(graph)
+
+        graph.edata.update({"rel_type": edge_type})
+
+        return graph
+
 if __name__ == "__main__":
 
     game = Game(5)
@@ -448,7 +582,7 @@ if __name__ == "__main__":
     boards = set()
 
     boards.add(game.state)
-    game.make_move(frozenset(frozenset(0,0)))
+    game.make_move(frozenset(0,0))
     game.make_move(frozenset((4,0)))
     boards.add(game.state)
     game.undo_move()

@@ -20,7 +20,7 @@ class UCTAgent(Agent):
     def select_move(self):
         self.playouts_played = 0
 
-        tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(7) for x in range(7)])
+        tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(self.game.base) for x in range(self.game.base)])
 
         self.playouts_per_move = int((400 + 0.01*(49 - tiles)**3.6)/len(self.game.get_moves()))
         
