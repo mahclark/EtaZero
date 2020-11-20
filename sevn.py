@@ -572,6 +572,7 @@ class State:
         graph = dgl.to_homogeneous(graph)
 
         graph.edata.update({"rel_type": edge_type})
+        graph.ndata.update({"features": torch.tensor(features, dtype=torch.float)})
 
         return graph
 
