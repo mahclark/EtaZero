@@ -79,10 +79,10 @@ class RGCNLayer(nn.Module):
 
         g.update_all(message_func, fn.max(msg='msg', out='h'), apply_func)
 
-class Model(nn.Module):
+class ValueWinNetwork(nn.Module):
     def __init__(self, in_dim, h_dim, out_dim, num_rels,
                  num_bases=-1, num_hidden_layers=1):
-        super(Model, self).__init__()
+        super().__init__()
         self.in_dim = in_dim
         self.h_dim = h_dim
         self.out_dim = out_dim
@@ -134,58 +134,3 @@ class Model(nn.Module):
         for layer in self.layers:
             layer(g)
         return g.ndata.pop('h')
-
-g = State.from_str("2/c-eae-b/5.3a1.1ebc1.2d2.2e2").to_dgl_graph()
-
-model = Model(
-    in_dim=3,
-    h_dim=10,
-    out_dim=2,
-    num_rels=5,
-    num_hidden_layers=1
-)
-
-n_hidden = 16 # number of hidden units
-n_bases = -1 # use number of relations as number of bases
-n_hidden_layers = 0 # use 1 input layer, 1 output layer, no hidden layer
-n_epochs = 25 # epochs to train
-lr = 0.01 # learning rate
-l2norm = 0 # L2 norm coefficient
-
-train_idx = [0,1,2,3,4,5]
-val_idx = [0,1,2,3,4,5]
-
-optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=l2norm)
-
-labels = torch.tensor([
-    [0.,1.],
-    [1.,1.],
-    [1.,1.],
-    [1.,1.],
-    [1.,1.],
-    [1.,1.],
-],dtype=torch.float)
-
-train_data = [(g, labels)]
-
-print("start training...")
-model.train()
-for epoch in range(50):
-    epoch_loss = 0
-    
-    for n, (g, labels) in enumerate(train_data):
-        optimizer.zero_grad()
-        logits = model.forward(g)
-        loss_fn = nn.MSELoss()
-        loss = loss_fn(logits[train_idx], labels[train_idx])
-        loss.backward()
-
-        optimizer.step()
-        epoch_loss += loss.detach().item()
-    
-    epoch_loss /= n+1
-
-    print("Epoch {:05d} | ".format(epoch) +
-          "Train Loss: {:.4f} | ".format(epoch_loss))
-
-print(model.forward(g))

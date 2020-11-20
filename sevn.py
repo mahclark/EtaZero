@@ -486,6 +486,7 @@ class State:
         features = []
 
         index_map = {} # from board pos to node index
+        pos_order = [] # all tile positions in order of node index
 
         takable_set = set()
         color_sets = {}
@@ -498,6 +499,7 @@ class State:
                 tile = self.board.get_at(pos)
                 if tile > -1:
                     index_map[pos] = len(features)
+                    pos_order.append(pos)
 
                     color_set = color_sets.get(tile, set())
                     color_set.add(pos)
@@ -563,6 +565,9 @@ class State:
         
         graph = dgl.heterograph(graph_data)
 
+        if graph.num_nodes() == 0: # case that no edges are added
+            graph.add_nodes(len(features))
+
         edge_type = torch.tensor([
             n
             for n, etype in enumerate(graph.etypes)
@@ -573,6 +578,7 @@ class State:
 
         graph.edata.update({"rel_type": edge_type})
         graph.ndata.update({"features": torch.tensor(features, dtype=torch.float)})
+        graph.ndata.update({"position": torch.tensor(pos_order)})
 
         return graph
 
