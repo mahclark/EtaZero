@@ -93,9 +93,6 @@ class ValueWinNetwork(nn.Module):
         # create rgcn layers
         self.build_model()
 
-        # create initial features
-        # self.features = self.create_features()
-
     def build_model(self):
         self.layers = nn.ModuleList()
         # input to hidden
@@ -108,11 +105,6 @@ class ValueWinNetwork(nn.Module):
         # hidden to output
         h2o = self.build_output_layer()
         self.layers.append(h2o)
-
-    # initialize feature for each node
-    # def create_features(self):
-    #     features = torch.arange(self.num_nodes)
-    #     return features
 
     def build_input_layer(self):
         return RGCNLayer(self.in_dim, self.h_dim, self.num_rels, self.num_bases,
@@ -128,9 +120,10 @@ class ValueWinNetwork(nn.Module):
 
     def forward(self, g):
         g.ndata['h'] = g.ndata['features']
-        # g.ndata['id'] = features
-        # if self.features is not None:
-        #     g.ndata['id'] = self.features
         for layer in self.layers:
             layer(g)
         return g.ndata.pop('h')
+
+    def evaluate(self, state):
+        h = self.forward(state.to_dgl_graph())
+        return torch.mean(h, 0)
