@@ -1,8 +1,21 @@
 from agents.agent import Agent
 import numpy as np
+import torch
 from math import sqrt
+from networks.value_win_network import ValueWinNetwork
+from networks.policy_value_network import PolicyValueNetwork
+from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
+from dgl_value_win_network import DGLValueWinNetwork
+from sevn import Game, State
+from collections import deque, namedtuple
+from tqdm import tqdm
 
 class EtaZero(Agent):
+
+    expected_network_types = [
+        PolicyValueNetwork,
+        ValueWinNetwork
+    ]
 
     def __init__(self, game, network, training=False, num=None):
         super().__init__(game, num)
@@ -11,23 +24,47 @@ class EtaZero(Agent):
         self.training = training
         self.progress = 0
         self.tree_root = None
+        self.game_depth = 1
+
+        for network_type in self.expected_network_types:
+            if isinstance(network, network_type):
+                self.network_type = network_type
+                return
+        
+        raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
+                .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
+
     
     def select_move(self):
-        if self.tree_root:
-            for action, child in self.tree_root.children.items():
-                if child.state == self.game.state:
+        if not self.training and self.tree_root: # TODO: fix node finding for when playing a different agent
+            for action in self.tree_root.actions:
+                if action.next_state.state == self.game.state:
                     self.tree_root = self.tree_root.take_action(action)
                     break
+        
+        if not self.tree_root:
+            if self.network_type == PolicyValueNetwork:
+                self.tree_root = StateNode()
+            else:
+                _, win_pred = self.network.evaluate(self.game.state)
+                self.tree_root = StateNode(win_pred=win_pred)
 
-        search_probs = self.calculate_search_probs()
-        moves, prob_distr = search_probs
+        move_probs = self.calculate_search_probs(n=20)
+        moves, prob_distr = move_probs
 
         if not self.training:
             move = moves[np.argmax(prob_distr)]
         else:
             move = np.random.choice(moves, p=prob_distr)
+        
+        if self.tree_root.parent == None: # top of the tree
+            total_W = sum([action.W for action in self.tree_root.actions])
+            total_N = sum([action.N for action in self.tree_root.actions])
+
+            self.tree_root.Q = -total_W/total_N
 
         self.tree_root = self.tree_root.take_move(move)
+        self.game_depth += 1
 
         return move
     
@@ -42,10 +79,6 @@ class EtaZero(Agent):
 
         for i in range(n):
             self.progress = i/n
-
-            if self.tree_root == None:
-                self.tree_root = StateNode(self.network)
-            
             self.probe(self.tree_root)
 
         sum_visits = sum([a.N**(1/tau) for a in self.tree_root.actions])
@@ -56,21 +89,46 @@ class EtaZero(Agent):
     def probe(self, node):
         if node.is_leaf():
             if self.game.over():
-                return self.game.state.outcome
+                return self.game.state.outcome*self.game.state.next_go
 
-            pi, v = self.network.evaluate(self.game.state)
-            node.expand(self.game.state, pi)
-            return v
+            if self.network_type == PolicyValueNetwork:
+                pi, win_pred = self.network.evaluate(self.game.state)
+                node.expand(self.game.state, pi)
+            else:
+                win_pred = node.win_pred
+                node.expand_val_win(self.network, self.game)
+
+            return win_pred
 
         action = node.select_action()
         self.game.make_move(action.move)
-        next_node = node.take_action(action)
 
-        outcome = self.probe(next_node)
+        outcome = self.probe(action.next_state)
+
         self.game.undo_move()
         action.update(outcome*self.game.state.next_go)
 
         return outcome
+    
+    def generate_training_labels(self):
+        assert self.game.over()
+
+        z = self.game.state.outcome
+
+        if self.game_depth%2 != 0:
+            z = -z
+
+        data_q = deque()
+        if self.network_type == PolicyValueNetwork:
+            raise NotImplementedError("get_training_labels() not implemented for a policy-value network")
+        else:
+            node = self.tree_root.parent # we don't train on a terminating node
+            while node:
+                data_q.appendleft((node.state, torch.tensor([node.Q, z])))
+                node = node.parent
+                z = -z
+        
+        return data_q
     
     def get_progress(self):
         return self.progress
@@ -78,10 +136,10 @@ class EtaZero(Agent):
 class StateNode:
     c_puct = 1
 
-    def __init__(self, network, parent=None):
+    def __init__(self, parent=None, win_pred=None):
         self.parent = parent
-        self.network = network
         self.leaf = True
+        self.win_pred = win_pred
     
     def expand(self, state, pi):
         self.state = state
@@ -91,42 +149,79 @@ class StateNode:
 
         moves, probs = pi
         assert(len(moves) == len(probs))
-        self.actions = [Action(moves[i], probs[i]) for i in range(len(moves))]
+        self.actions = [Action(moves[i], probs[i], StateNode(self)) for i in range(len(moves))]
         self.action_dict = { action.move : action for action in self.actions }
-        self.children = { action : StateNode(self.network, self) for action in self.actions }
+
+    def expand_val_win(self, network, game):
+        self.state = game.state
+        self.leaf = False
+
+        assert(game.state.outcome == 0)
+
+        action_data = []
+        vals = []
+        for move in game.get_moves():
+            game.make_move(move)
+            if game.over():
+                val, win = 1, 1
+            else:
+                val, win = network.evaluate(game.state)
+            action_data.append((move, StateNode(self, win_pred=win)))
+            vals.append(val)
+            game.undo_move()
+        
+        vals = torch.tensor(vals)
+        ps = vals/torch.sum(vals) # normalise vals to sum to 1
+        
+        self.actions = []
+        self.action_dict = {}
+        self.children = {}
+        
+        for p, (move, node) in zip(ps, action_data):
+            action = Action(move, p=p, next_state=node)
+
+            self.actions.append(action)
+            self.action_dict[move] = action
 
     def select_action(self):
         sqrt_sum_visits = sqrt(sum([a.N for a in self.actions]))
         scores = np.array([a.Q + self.c_puct*a.P*sqrt_sum_visits/(1 + a.N) for a in self.actions])
         return self.actions[np.argmax(scores)]
     
-    def take_action(self, action):
-        return self.children[action]
-    
     def take_move(self, move):
-        return self.children[self.action_dict[move]]
+        return self.action_dict[move].next_state
     
     def is_leaf(self):
         return self.leaf
 
 class Action:
-    def __init__(self, move, p):
+    def __init__(self, move, p, next_state):
         self.move = move
         self.P = p
         self.N = 0
         self.W = 0
         self.Q = 0
+        self.next_state = next_state
     
     def update(self, z):
         self.N += 1
         self.W += z
         self.Q = self.W/self.N
+        self.next_state.Q = self.Q
     
     def __hash__(self):
         return self.move.__hash__()
 
-
 if __name__ == "__main__":
-    eta = EtaZero(None, True)
-    for _ in range(20):
-        print(eta.select_move())
+    game = Game.from_str("1/aaaaa/cabcd.aedeb.dcbee.ebdac.dacba")#(5)
+    net = DGLValueWinNetwork(in_dim=3, h_dim=10, out_dim=2, num_rels=5)
+    dnet = DummyVWNetwork()
+    eta = EtaZero(game, net, training=True)
+    moves = []
+    while not game.over():
+        move = eta.select_move()
+        game.make_move(move)
+        moves.append(set(move))
+    
+    for label, move in zip(eta.generate_training_labels(), moves):
+        print(label, move)

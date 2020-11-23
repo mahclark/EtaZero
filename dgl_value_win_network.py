@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import dgl
 import dgl.function as fn
 from functools import partial
+from networks.value_win_network import ValueWinNetwork
 
 from sevn import State
 
@@ -79,7 +80,7 @@ class RGCNLayer(nn.Module):
 
         g.update_all(message_func, fn.max(msg='msg', out='h'), apply_func)
 
-class ValueWinNetwork(nn.Module):
+class DGLValueWinNetwork(nn.Module, ValueWinNetwork):
     def __init__(self, in_dim, h_dim, out_dim, num_rels,
                  num_bases=-1, num_hidden_layers=1):
         super().__init__()
@@ -126,4 +127,4 @@ class ValueWinNetwork(nn.Module):
 
     def evaluate(self, state):
         h = self.forward(state.to_dgl_graph())
-        return torch.mean(h, 0)
+        return torch.mean(h, 0)[:2]
