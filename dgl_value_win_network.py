@@ -9,122 +9,95 @@ from networks.value_win_network import ValueWinNetwork
 from sevn import State
 
 class RGCNLayer(nn.Module):
-    def __init__(self, in_feat, out_feat, num_rels, num_bases=-1, bias=None,
-                 activation=None, is_input_layer=False):
-        super(RGCNLayer, self).__init__()
+    def __init__(self, in_feat, out_feat, num_rels, with_bias=True, activation=None):
+        super().__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
-        self.num_rels = num_rels
-        self.num_bases = num_bases
-        self.bias = bias
+        self.num_rels = num_rels + 1 # add one for the identity relation
+        self.with_bias = with_bias
         self.activation = activation
-        self.is_input_layer = is_input_layer
 
-        # sanity check
-        if self.num_bases <= 0 or self.num_bases > self.num_rels:
-            self.num_bases = self.num_rels
+        # init weights
+        self.weight = nn.Parameter(torch.empty(
+            self.num_rels,
+            self.in_feat,
+            self.out_feat,
+            # device=torch.device('cuda')))
+        ))
 
-        # weight bases in equation (3)
-        self.weight = nn.Parameter(torch.Tensor(self.num_bases, self.in_feat,
-                                                self.out_feat))
+        nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain('relu'))
 
-        if self.num_bases < self.num_rels:
-            # linear combination coefficients in equation (3)
-            self.w_comp = nn.Parameter(torch.Tensor(self.num_rels, self.num_bases))
+        # init bias
+        if self.with_bias:
+            self.bias = nn.Parameter(torch.Tensor(self.num_rels, out_feat))
 
-        # add bias
-        if self.bias:
-            self.bias = nn.Parameter(torch.Tensor(out_feat))
-
-        # init trainable parameters
-        nn.init.xavier_uniform_(self.weight,
-                                gain=nn.init.calculate_gain('relu'))
-        if self.num_bases < self.num_rels:
-            nn.init.xavier_uniform_(self.w_comp,
-                                    gain=nn.init.calculate_gain('relu'))
-        if self.bias:
-            nn.init.xavier_uniform_(self.bias,
-                                    gain=nn.init.calculate_gain('relu'))
+            nn.init.xavier_uniform_(self.bias, gain=nn.init.calculate_gain('relu'))
 
     def forward(self, g):
-        if self.num_bases < self.num_rels:
-            # generate all weights from bases (equation (3))
-            weight = self.weight.view(self.in_feat, self.num_bases, self.out_feat)
-            weight = torch.matmul(self.w_comp, weight).view(self.num_rels,
-                                                        self.in_feat, self.out_feat)
-        else:
-            weight = self.weight
-
-        # if self.is_input_layer:
-        #     def message_func(edges):
-        #         # for input layer, matrix multiply can be converted to be
-        #         # an embedding lookup using source node id
-        #         embed = weight.view(-1, self.out_feat)
-        #         index = edges.data['rel_type'] * self.in_feat + edges.src['id']
-        #         return {'msg': embed[index] * edges.data['norm']}
-        # else:
         def message_func(edges):
-            w = weight[edges.data['rel_type']]
-            torch.bmm(edges.src['h'].unsqueeze(1), w)
-            msg = torch.bmm(edges.src['h'].unsqueeze(1), w).squeeze()
+            """Transforms data along edges"""
+
+            w = self.weight[edges.data['rel_type']]
+
+            msg = torch.bmm(edges.src['h'].unsqueeze(1), w).squeeze(1)
+            
+            if self.with_bias:
+                msg += self.bias[edges.data['rel_type']]
+
             # msg = msg * edges.data['norm']
-            return {'msg': msg}
+            return { 'msg': msg }
 
         def apply_func(nodes):
-            h = nodes.data['h']
-            if self.bias:
-                h = h + self.bias
+            """Transforms nodes' own data and combines with aggregated data from neighbours"""
+
+            num_nodes = len(nodes.data['h'])
+            w = self.weight[-torch.ones(num_nodes, dtype=torch.int64)]
+
+            id_msg = torch.bmm(nodes.data['h'].unsqueeze(1), w).squeeze(1)
+            h = id_msg + nodes.data.get('agg', 0)
+
+            if self.with_bias:
+                h += self.bias[-torch.ones(num_nodes, dtype=torch.int64)]
+            
             if self.activation:
                 h = self.activation(h)
-            return {'h': h}
 
-        g.update_all(message_func, fn.max(msg='msg', out='h'), apply_func)
+            return { 'h': h }
+
+        g.update_all(message_func, fn.max(msg='msg', out='agg'), apply_func)
 
 class DGLValueWinNetwork(nn.Module, ValueWinNetwork):
-    def __init__(self, in_dim, h_dim, out_dim, num_rels,
-                 num_bases=-1, num_hidden_layers=1):
+    def __init__(self, dims=[3,10,10,2], num_rels=5, on_cuda=False):
         super().__init__()
-        self.in_dim = in_dim
-        self.h_dim = h_dim
-        self.out_dim = out_dim
+        self.dims = dims
         self.num_rels = num_rels
-        self.num_bases = num_bases
-        self.num_hidden_layers = num_hidden_layers
+        self.on_cuda = on_cuda
 
-        # create rgcn layers
-        self.build_model()
-
-    def build_model(self):
         self.layers = nn.ModuleList()
-        # input to hidden
-        i2h = self.build_input_layer()
-        self.layers.append(i2h)
-        # hidden to hidden
-        for _ in range(self.num_hidden_layers):
-            h2h = self.build_hidden_layer()
-            self.layers.append(h2h)
-        # hidden to output
-        h2o = self.build_output_layer()
-        self.layers.append(h2o)
 
-    def build_input_layer(self):
-        return RGCNLayer(self.in_dim, self.h_dim, self.num_rels, self.num_bases,
-                         activation=F.relu, is_input_layer=True)
-
-    def build_hidden_layer(self):
-        return RGCNLayer(self.h_dim, self.h_dim, self.num_rels, self.num_bases,
-                         activation=F.relu)
-
-    def build_output_layer(self):
-        return RGCNLayer(self.h_dim, self.out_dim, self.num_rels, self.num_bases,
-                         activation=partial(torch.sigmoid))#, dim=1))
+        for i in range(len(dims) - 1):
+            activation_fn = torch.tanh if i+2 == len(dims) else F.relu
+            self.layers.append(
+                RGCNLayer(dims[i], dims[i+1], num_rels, activation=activation_fn)
+            )
 
     def forward(self, g):
         g.ndata['h'] = g.ndata['features']
+
         for layer in self.layers:
             layer(g)
+        
         return g.ndata.pop('h')
 
     def evaluate(self, state):
-        h = self.forward(state.to_dgl_graph())
-        return torch.mean(h, 0)[:2]
+        g = state.to_dgl_graph()
+
+        if self.on_cuda:
+            torch.device('cuda')
+            with torch.cuda.device(0):
+
+                h = self.forward(g.to('cuda:0'))
+
+                return torch.mean(h, 0).detach().to(device=torch.device('cpu'))
+        
+        return torch.mean(self.forward(g), 0)
