@@ -1,8 +1,25 @@
-import torch
 import dgl
 import numpy as np
-from typing import NamedTuple
+import time
+import torch
+from queue import PriorityQueue
 from random import shuffle
+from torch import tensor
+from tqdm import tqdm
+from typing import NamedTuple
+
+class Pos(NamedTuple):
+    row: int
+    col: int
+    
+    def left(self):
+        return Pos(self.row-1, self.col)
+    def right(self):
+        return Pos(self.row+1, self.col)
+    def up(self):
+        return Pos(self.row, self.col-1)
+    def down(self):
+        return Pos(self.row, self.col+1)
 
 class Game:
     """
@@ -10,8 +27,8 @@ class Game:
     """
 
     def __init__(self, base=7, state=None):
-        if base % 2 == 0 or base < 5:
-            raise Exception("Invalid base number. Must be odd and > 3.")
+        if base % 2 == 0 or base < 3:
+            raise Exception("Invalid base number. Must be odd and > 2.")
 
         self.base = base
 
@@ -69,7 +86,8 @@ class Game:
             board=board,
             score=score,
             next_go=-self.state.next_go,
-            parent=self.state
+            parent=self.state,
+            move=move
         )
 
         self.state.parent.children[move] = self.state
@@ -117,15 +135,15 @@ class Board:
         self.board = tuple([tuple(row) for row in board])
         
         # Empty if all cells have value -1
-        self.empty = sum([
-            board[row][col] != -1
+        self.empty = all(
+            board[row][col] == -1
             for row in range(base)
             for col in range(base)
-        ]) == 0
+        )
         
         # List of all corner tiles
         self.takable = [
-            (row, col)
+            Pos(row, col)
             for row in range(self.base)
             for col in range(self.base)
             if self.get_at(row, col) >= 0
@@ -210,8 +228,8 @@ class Board:
     @staticmethod
     def validate(board):
         base = len(board)
-        if base%2 != 1 or base < 5 or base > 25:
-            raise Exception("Base number must be odd and between 4 and 26.")
+        if base%2 != 1 or base < 3 or base > 25:
+            raise Exception("Base number must be odd and between 2 and 26.")
 
         if sum([len(row) != base for row in board]) > 0:
             raise Exception("All rows must have length as the base number.")
@@ -324,8 +342,8 @@ class Score:
     @staticmethod
     def validate(score):
         base = len(score)
-        if base%2 != 1 or base < 5 or base > 25:
-            raise Exception("Base number must be odd and between 4 and 26.")
+        if base%2 != 1 or base < 3 or base > 25:
+            raise Exception("Base number must be odd and between 2 and 26.")
 
         if sum([abs(x) > base for x in score]) > 0:
             raise Exception("Score cannot have values > base number.")
@@ -370,17 +388,26 @@ class Score:
     def __ne__(self, other):
         return not self.__eq__(other)
 
+class Relation:
+    HIDDEN_BY = 0
+    REVEALS = 1
+    DIAGONAL = 2
+    TAKABLE = 3
+    SAME_COLOR = 4
+
 class State:
     """
     Representation of the game state.
     Immutable except self.children.
     """
-    def __init__(self, board, score, next_go, parent=None):
+
+    def __init__(self, board, score, next_go, parent=None, move=None):
         self.board = board
         self.score = score
         self.next_go = next_go
         self.parent = parent
         self.children = {}
+        self.dgl_graph = None
 
         if score.get_player_with_all() != 0:
             self.outcome = score.get_player_with_all()
@@ -451,37 +478,72 @@ class State:
             raise Exception("Score and board must have the same base number.")
 
         return State(board, score, next_go)
+
+    def get_feature_vector(self, pos):
+        tile = self.board.get_at(pos)
+        score_pair = self.score.get_score_pair()
+
+        return [
+            self.board.base - self.score.get_score(tile)*self.next_go,
+            self.board.base + self.score.get_score(tile)*self.next_go,
+            (score_pair[0] - score_pair[1])*self.next_go
+        ]
     
     def to_dgl_graph(self):
-        class Pos(NamedTuple):
-            row: int
-            col: int
+        if self.dgl_graph != None:
+            return self.dgl_graph
+
+        size_bound = self.board.base**3 + 16*self.board.base**2
+       
+        class Edges:
+            def __init__(self):
+                self.etypes = [0]*size_bound
+                self.src = [0]*size_bound
+                self.dst = [0]*size_bound
+                self.size = 0
             
-            def left(self):
-                return Pos(self.row-1, self.col)
-            def right(self):
-                return Pos(self.row+1, self.col)
-            def up(self):
-                return Pos(self.row, self.col-1)
-            def down(self):
-                return Pos(self.row, self.col+1)
+            def add_edge(self, u, v, rel_id, both_ways=False):
+                if self.size == size_bound:
+                    print(size_bound)
+                self.etypes[self.size] = rel_id
+                self.src[self.size] = u
+                self.dst[self.size] = v
+                self.size += 1
+                if both_ways:
+                    if self.size == size_bound:
+                        print(size_bound)
+                    self.etypes[self.size] = rel_id
+                    self.src[self.size] = v
+                    self.dst[self.size] = u
+                    self.size += 1
 
-        class Relation(NamedTuple):
-            src: list
-            dst: list
+            def get_etypes(self):
+                return self.etypes[:self.size]
+            
+            def get_src_dst(self):
+                return (
+                    self.src[:self.size],
+                    self.dst[:self.size]
+                )
+            
+            # def gpu_tensors(self):
+            #     # t = get_time()
+            #     src_tensor.copy_(src_cpu)
+            #     dst_tensor.copy_(dst_cpu)
+            #     # print("copy time:", diff_str(t))
 
-            def add(self, u, v, two_way=False):
-                self.src.append(u)
-                self.dst.append(v)
-                if two_way:
-                    self.src.append(v)
-                    self.dst.append(u)
+            #     return (
+            #         src_tensor[:self.size],
+            #         dst_tensor[:self.size]
+            #     )
+            
+            # def cpu_tensors(self):
+            #     return (
+            #         src_cpu[:self.size],
+            #         dst_cpu[:self.size]
+            #     )
 
-        hidden_bys = Relation([],[])
-        reveals = Relation([],[])
-        diagonals = Relation([],[])
-        takables = Relation([],[])
-        same_color = Relation([],[])
+        edges = Edges()
 
         features = []
 
@@ -508,112 +570,77 @@ class State:
                     if pos in self.board.get_takable():
                         takable_set.add(pos)
 
-                    score_pair = self.score.get_score_pair()
-
-                    features.append([
-                        self.board.base - self.score.get_score(tile)*self.next_go,
-                        self.board.base + self.score.get_score(tile)*self.next_go,
-                        (score_pair[0] - score_pair[1])*self.next_go
-                    ])
+                    features.append(self.get_feature_vector(pos))
 
         # Add all positional relations
         for pos, index in index_map.items():
             if pos not in self.board.get_takable():
+                
                 blocked_h = self.board.get_at(pos.left()) > -1 and self.board.get_at(pos.right()) > -1
                 blocked_v = self.board.get_at(pos.up()) > -1 and self.board.get_at(pos.down()) > -1
-
+                
                 assert blocked_h or blocked_v
 
                 if blocked_h:
                     left = index_map[pos.left()]
                     right = index_map[pos.right()]
 
-                    hidden_bys.add(index, left)
-                    hidden_bys.add(index, right)
-                    reveals.add(left, index)
-                    reveals.add(right, index)
+                    edges.add_edge(index, left, Relation.HIDDEN_BY)
+                    edges.add_edge(index, right, Relation.HIDDEN_BY)
+                    edges.add_edge(left, index, Relation.REVEALS)
+                    edges.add_edge(right, index, Relation.REVEALS)
                 
                 if blocked_v:
                     up = index_map[pos.up()]
                     down = index_map[pos.down()]
 
-                    hidden_bys.add(index, up)
-                    hidden_bys.add(index, down)
-                    reveals.add(up, index)
-                    reveals.add(down, index)
+                    edges.add_edge(index, up, Relation.HIDDEN_BY)
+                    edges.add_edge(index, down, Relation.HIDDEN_BY)
+                    edges.add_edge(up, index, Relation.REVEALS)
+                    edges.add_edge(down, index, Relation.REVEALS)
                 
                 if blocked_h and blocked_v:
-                    diagonals.add(left, up, two_way=True)
-                    diagonals.add(up, right, two_way=True)
-                    diagonals.add(right, down, two_way=True)
-                    diagonals.add(down, left, two_way=True)
+                    edges.add_edge(left, up, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(up, right, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(right, down, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(down, left, Relation.DIAGONAL, both_ways=True)
 
         # Densely connect all same color nodes and all takable nodes.
-        for relation_set, relation in [(color_set, same_color) for color_set in color_sets.values()] + [(takable_set, takables)]:
+        for relation_set, rel_id in [(takable_set, Relation.TAKABLE)] + [(color_set, Relation.SAME_COLOR) for color_set in color_sets.values()]:
             for u in relation_set:
                 for v in relation_set:
                     if u != v:
-                        relation.add(index_map[u], index_map[v])
+                        edges.add_edge(index_map[u], index_map[v], rel_id)
 
-        graph_data = {
-            ("tile", "0_hidden_by", "tile") : hidden_bys,
-            ("tile", "1_reveals", "tile") : reveals,
-            ("tile", "2_diagonals", "tile") : diagonals,
-            ("tile", "3_takables", "tile") : takables,
-            ("tile", "4_same_color", "tile") : same_color,
-        }
-        
-        graph = dgl.heterograph(graph_data)
+        graph = dgl.graph(edges.get_src_dst())
 
         if graph.num_nodes() == 0: # case that no edges are added
             graph.add_nodes(len(features))
 
-        edge_type = torch.tensor([
-            n
-            for n, etype in enumerate(graph.etypes)
-            for _ in range(graph.num_edges(etype=etype))
-        ])
+        graph.edata.update({"rel_type": tensor(edges.get_etypes())})
+        graph.ndata.update({"features": tensor(features, dtype=torch.float)})
+        graph.ndata.update({"position": tensor(pos_order)})
 
-        graph = dgl.to_homogeneous(graph)
-
-        graph.edata.update({"rel_type": edge_type})
-        graph.ndata.update({"features": torch.tensor(features, dtype=torch.float)})
-        graph.ndata.update({"position": torch.tensor(pos_order)})
+        self.dgl_graph = graph
 
         return graph
 
+from agents.random_agent import RandomAgent
 if __name__ == "__main__":
 
-    game = Game(5)
+    st = get_time()
 
-    boards = set()
-
-    boards.add(game.state)
-    game.make_move(frozenset(0,0))
-    game.make_move(frozenset((4,0)))
-    boards.add(game.state)
-    game.undo_move()
-    game.undo_move()
-    boards.add(game.state)
-    game.make_move(frozenset((4,0)))
-    game.make_move(frozenset((0,0)))
-    boards.add(game.state)
-
-    print(boards)
-
-    game.make_move(next(iter(game.get_moves())))
-    game.make_move(next(iter(game.get_moves())))
-    game.make_move(next(iter(game.get_moves())))
-    game.make_move(next(iter(game.get_moves())))
-    game.make_move(next(iter(game.get_moves())))
-
-    for row in range(game.base):
-        for col in range(game.base):
-            tile = game.state.board.board[row][col]
-            if tile == -1:
-                print("- ",end="")
-            elif (row, col) in game.state.board.get_takable():
-                print("O ",end="")
-            else:
-                print("X ",end="")
-        print()
+    times = []
+    for i in range(1000):
+        game = Game.from_str("1/aaaaaaa/fdcfaaa.fafgbde.eedggec.accbbfb.fegdfba.gdeccbc.ddabegg")
+        agent = RandomAgent(game)
+        while not game.over():
+            t = get_time()
+            game.make_move(agent.select_move())
+            times.append(get_time() - t)
+    
+    print(pprint("total:", diff_str(st)))
+    
+    print(len(times))
+    print(sum(times))
+    print(1000*sum(times)/len(times))
