@@ -49,7 +49,7 @@ class EtaZero(Agent):
                 _, win_pred = self.network.evaluate(self.game.state)
                 self.tree_root = StateNode(win_pred=win_pred)
 
-        move_probs = self.calculate_search_probs(n=20)
+        move_probs = self.calculate_search_probs(n=30)
         moves, prob_distr = move_probs
 
         if not self.training:
@@ -106,9 +106,9 @@ class EtaZero(Agent):
         outcome = self.probe(action.next_state)
 
         self.game.undo_move()
-        action.update(outcome*self.game.state.next_go)
+        action.update(outcome)
 
-        return outcome
+        return -outcome
     
     def generate_training_labels(self):
         assert self.game.over()
@@ -212,16 +212,34 @@ class Action:
     def __hash__(self):
         return self.move.__hash__()
 
+import sevn
+import time
+
 if __name__ == "__main__":
-    game = Game.from_str("1/aaaaa/cabcd.aedeb.dcbee.ebdac.dacba")#(5)
-    net = DGLValueWinNetwork(in_dim=3, h_dim=10, out_dim=2, num_rels=5)
+    net = DGLValueWinNetwork()
     dnet = DummyVWNetwork()
-    eta = EtaZero(game, net, training=True)
-    moves = []
-    while not game.over():
-        move = eta.select_move()
-        game.make_move(move)
-        moves.append(set(move))
+
+    t = time.perf_counter()
+    move_count = 0
+
+    for _ in range(1):
+        game = Game(3)#.from_str("1/aaaaa/cabcd.aedeb.dcbee.ebdac.dacba")
+        eta = EtaZero(game, net, training=True)
+        moves = []
+        while not game.over():
+            move = eta.select_move()
+            game.make_move(move)
+            moves.append(set(move))
+            move_count += 1
+            # print(move_count)
+            # break
+    
+    print("total: {:.4f} s".format((time.perf_counter() - t)))
+    print("num moves:", move_count)
+    print("num states:", sevn.g_count)
+    # for t in [net.t0, net.t1, net.t2, net.t3]:
+    #     avg = sum(t)/len(t)
+    #     print("{:.4f} ms".format(1000*avg))
     
     for label, move in zip(eta.generate_training_labels(), moves):
         print(label, move)
