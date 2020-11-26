@@ -9,7 +9,7 @@ from networks.value_win_network import ValueWinNetwork
 from sevn import State
 
 class RGCNLayer(nn.Module):
-    def __init__(self, in_feat, out_feat, num_rels, with_bias=True, activation=None):
+    def __init__(self, in_feat, out_feat, num_rels, with_bias=True, activation=None, on_cuda=False):
         super().__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -22,14 +22,18 @@ class RGCNLayer(nn.Module):
             self.num_rels,
             self.in_feat,
             self.out_feat,
-            # device=torch.device('cuda')))
+            device=torch.device('cuda' if on_cuda else 'cpu')
         ))
 
         nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain('relu'))
 
         # init bias
         if self.with_bias:
-            self.bias = nn.Parameter(torch.Tensor(self.num_rels, out_feat))
+            self.bias = nn.Parameter(torch.empty(
+                self.num_rels,
+                out_feat,
+                device=torch.device('cuda' if on_cuda else 'cpu')
+            ))
 
             nn.init.xavier_uniform_(self.bias, gain=nn.init.calculate_gain('relu'))
 
@@ -61,6 +65,7 @@ class RGCNLayer(nn.Module):
             
             if self.activation:
                 h = self.activation(h)
+            # print("h:", h.requires_grad)
 
             return { 'h': h }
 
@@ -78,26 +83,31 @@ class DGLValueWinNetwork(nn.Module, ValueWinNetwork):
         for i in range(len(dims) - 1):
             activation_fn = torch.tanh if i+2 == len(dims) else F.relu
             self.layers.append(
-                RGCNLayer(dims[i], dims[i+1], num_rels, activation=activation_fn)
+                RGCNLayer(dims[i], dims[i+1], num_rels, activation=activation_fn, on_cuda=on_cuda)
             )
 
     def forward(self, g):
+        if self.on_cuda:
+            g = g.to('cuda:0')
+
         g.ndata['h'] = g.ndata['features']
-
-        for layer in self.layers:
-            layer(g)
-        
-        return g.ndata.pop('h')
-
-    def evaluate(self, state):
-        g = state.to_dgl_graph()
+        g.ndata['h'].requires_grad = True
 
         if self.on_cuda:
             torch.device('cuda')
             with torch.cuda.device(0):
 
-                h = self.forward(g.to('cuda:0'))
+                for layer in self.layers:
+                    layer(g)
+                            
+                return torch.mean(g.ndata.pop('h'), 0).to(device=torch.device('cpu'))
+                      
+        else:
+            for layer in self.layers:
+                layer(g)
+            
+            return torch.mean(g.ndata.pop('h'), 0)
 
-                return torch.mean(h, 0).detach().to(device=torch.device('cpu'))
-        
-        return torch.mean(self.forward(g), 0)
+    def evaluate(self, state):
+        g = state.to_dgl_graph()
+        return self.forward(g)

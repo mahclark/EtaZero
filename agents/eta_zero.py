@@ -12,12 +12,14 @@ from tqdm import tqdm
 
 class EtaZero(Agent):
 
+    name = "EtaZero"
+
     expected_network_types = [
         PolicyValueNetwork,
         ValueWinNetwork
     ]
 
-    def __init__(self, game, network, training=False, num=None):
+    def __init__(self, game, network, training=False, samples_per_move=50, num=None):
         super().__init__(game, num)
 
         self.network = network
@@ -25,6 +27,7 @@ class EtaZero(Agent):
         self.progress = 0
         self.tree_root = None
         self.game_depth = 1
+        self.samples_per_move = samples_per_move
 
         for network_type in self.expected_network_types:
             if isinstance(network, network_type):
@@ -39,17 +42,17 @@ class EtaZero(Agent):
         if not self.training and self.tree_root: # TODO: fix node finding for when playing a different agent
             for action in self.tree_root.actions:
                 if action.next_state.state == self.game.state:
-                    self.tree_root = self.tree_root.take_action(action)
+                    self.tree_root = self.tree_root.take_move(action.move)
                     break
         
         if not self.tree_root:
             if self.network_type == PolicyValueNetwork:
                 self.tree_root = StateNode()
             else:
-                _, win_pred = self.network.evaluate(self.game.state)
-                self.tree_root = StateNode(win_pred=win_pred)
+                _, win_pred = self.network.evaluate(self.game.state).detach()
+                self.tree_root = StateNode(self.game.state, win_pred=win_pred)
 
-        move_probs = self.calculate_search_probs(n=30)
+        move_probs = self.calculate_search_probs(n=self.samples_per_move)
         moves, prob_distr = move_probs
 
         if not self.training:
@@ -62,9 +65,13 @@ class EtaZero(Agent):
             total_N = sum([action.N for action in self.tree_root.actions])
 
             self.tree_root.Q = -total_W/total_N
+            
+        score = self.tree_root.action_dict[move].Q
+        self.set_confidence((score + 1)/2)
 
         self.tree_root = self.tree_root.take_move(move)
         self.game_depth += 1
+
 
         return move
     
@@ -92,7 +99,7 @@ class EtaZero(Agent):
                 return self.game.state.outcome*self.game.state.next_go
 
             if self.network_type == PolicyValueNetwork:
-                pi, win_pred = self.network.evaluate(self.game.state)
+                pi, win_pred = self.network.evaluate(self.game.state).detach()
                 node.expand(self.game.state, pi)
             else:
                 win_pred = node.win_pred
@@ -106,7 +113,7 @@ class EtaZero(Agent):
         outcome = self.probe(action.next_state)
 
         self.game.undo_move()
-        action.update(outcome)
+        action.update(-outcome)
 
         return -outcome
     
@@ -118,17 +125,19 @@ class EtaZero(Agent):
         if self.game_depth%2 != 0:
             z = -z
 
-        data_q = deque()
+        data_x = []
+        data_y = []
         if self.network_type == PolicyValueNetwork:
             raise NotImplementedError("get_training_labels() not implemented for a policy-value network")
         else:
             node = self.tree_root.parent # we don't train on a terminating node
             while node:
-                data_q.appendleft((node.state, torch.tensor([node.Q, z])))
+                data_x.append(node.state.to_dgl_graph())
+                data_y.append(torch.tensor([node.Q, z]))
                 node = node.parent
                 z = -z
         
-        return data_q
+        return (data_x, data_y)
     
     def get_progress(self):
         return self.progress
@@ -136,24 +145,29 @@ class EtaZero(Agent):
 class StateNode:
     c_puct = 1
 
-    def __init__(self, parent=None, win_pred=None):
+    def __init__(self, state, parent=None, win_pred=None):
         self.parent = parent
         self.leaf = True
         self.win_pred = win_pred
-    
-    def expand(self, state, pi):
         self.state = state
+    
+    def expand(self, game, pi):
         self.leaf = False
 
-        assert(state.outcome == 0)
+        assert(game.state.outcome == 0)
+
+        def get_child_state(move):
+            game.make_move(move)
+            state = game.state
+            game.undo_move()
+            return state
 
         moves, probs = pi
         assert(len(moves) == len(probs))
-        self.actions = [Action(moves[i], probs[i], StateNode(self)) for i in range(len(moves))]
+        self.actions = [Action(moves[i], probs[i], StateNode(get_child_state(moves[i]), self)) for i in range(len(moves))]
         self.action_dict = { action.move : action for action in self.actions }
 
     def expand_val_win(self, network, game):
-        self.state = game.state
         self.leaf = False
 
         assert(game.state.outcome == 0)
@@ -165,8 +179,8 @@ class StateNode:
             if game.over():
                 val, win = 1, 1
             else:
-                val, win = network.evaluate(game.state)
-            action_data.append((move, StateNode(self, win_pred=win)))
+                val, win = network.evaluate(game.state).detach()
+            action_data.append((move, StateNode(game.state, self, win_pred=win)))
             vals.append(val)
             game.undo_move()
         
