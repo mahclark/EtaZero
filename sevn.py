@@ -20,6 +20,9 @@ class Pos(NamedTuple):
         return Pos(self.row, self.col-1)
     def down(self):
         return Pos(self.row, self.col+1)
+    
+    def __str__(self):
+        return "{0},{1}".format(self.row, self.col)
 
 class Game:
     """
@@ -445,7 +448,12 @@ class State:
         return self.hash_val
     
     def __eq__(self, other):
-        return other and self.board == other.board and self.score == other.score and self.next_go == other.next_go and self.outcome == other.outcome
+        return other and \
+            isinstance(other, State) and \
+                self.board == other.board and \
+                    self.score == other.score and \
+                        self.next_go == other.next_go and \
+                            self.outcome == other.outcome
     
     def __ne__(self, other):
         return not self.__eq__(other)

@@ -4,7 +4,7 @@ import os
 import torch
 from torch import nn
 from tqdm import tqdm
-from dgl_value_win_network import DGLValueWinNetwork
+from networks.dgl_value_win_network import DGLValueWinNetwork
 from sevn import Game
 from agents.random_agent import RandomAgent
 from agents.eta_zero import EtaZero
@@ -91,9 +91,9 @@ class Trainer:
             print("Epoch {:05d} | ".format(epoch) +
                 "Loss: {:.4f} | ".format(epoch_loss))
         
-        if self.prev_model_path != None:
-            prev_model = torch.load(self.prev_model_path)
-            self.compare(prev_model)
+        # if self.prev_model_path != None:
+        #     prev_model = torch.load(self.prev_model_path)
+        #     self.compare(prev_model)
         
         path = self.get_save_path()
         self.save_model(path)
@@ -133,15 +133,11 @@ class Trainer:
                 print("Training model lost as player {}".format(i % 2 + 1))
 
 if __name__ == "__main__":
-    # model = DGLValueWinNetwork(
-    #     dims=[3,10,10,2],
-    #     on_cuda=True
-    # )
 
-    trainer = Trainer(load_path="models\\2020-11-26-16-43-01")
-    for i in range(10):
-        num_games = 10 if i == 0 else 50
-        trainer.train(num_games=num_games, game_base=5, batch_size=8)
+    trainer = Trainer(load_path="models\\2020-11-28-12-01-33.pt")
+    while True:
+        # num_games = 20 if i == 0 else 100
+        trainer.train(num_games=100, game_base=5, batch_size=8, n_epochs=20)
 
     # prove generality by training on 5x5 board and testing on 9x9 board
     # game = Game(9)
