@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import torch
 import pygame
 import time
 import sys
@@ -9,8 +10,10 @@ from agents.random_agent import RandomAgent
 from agents.human import Human
 from agents.mcts_agent import MinimaxMCTS
 from agents.uct_agent import UCTAgent
-from agents.eta_zero import EtaZero
+from agents.eta_zero import EtaZero, EtaZeroVisualiser
+from networks.dgl_value_win_network import DGLValueWinNetwork
 from networks.dummy_networks import DummyPVNetwork
+from renderer import Renderer
 
 # from screen_parsing import simple_plotter
 
@@ -93,7 +96,7 @@ if __name__ == "__main__":
     base = 7
     
     ### Random game state
-    game = Game(base)
+    game = Game(base)#.from_str("1/aaaaa/eecea.ddbbd.bbecd.abaac.cdeac")
     
     ### Game state from a board
     # game = Game(
@@ -106,13 +109,13 @@ if __name__ == "__main__":
     # )
 
     ### Game state from string representation
-    # game = Game.from_str("2/c-eae-b/5.3a1.1ebc1.2d2.2e2")
+    # game = Game.from_str("1/aaa/acb.bca.cba")
 
     user_input = UserInput()
 
     game.reset_search_game()
-    player1 = UCTAgent(game.search_game)#, DummyPVNetwork())
-    player2 = Human(game.search_game, user_input)
+    player2 = EtaZero(game.search_game, torch.load("models\\2020-11-27-11-29-40.pt"), samples_per_move=200)#, DummyPVNetwork())
+    player1 = UCTAgent(game.search_game)#,user_input)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2
@@ -126,12 +129,15 @@ if __name__ == "__main__":
 
     next_player = player1 if game.state.next_go == 1 else player2
 
+    state_list = [game.state]
+
     agent_executor = ThreadPoolExecutorTimedStackTraced()
 
     pygame.init()
 
     small_font = pygame.font.SysFont("Bahnschrift", 20)
     big_font = pygame.font.SysFont("Bahnschrift", 50)
+    board_surf = None
 
     animations = Animations()
     x_size, y_size = 600, 600
@@ -155,13 +161,23 @@ if __name__ == "__main__":
                 screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
 
             if event.type == pygame.MOUSEBUTTONUP:
-                pos = screen_to_board(mx, my)
-                tile = (int(pos[1]/tile_size), int(pos[0]/tile_size))
-                user_input.selected[tile] = not user_input.selected.get(tile, False)
+                if board_surf:
+                    pos = screen_to_board(mx, my)
+                    tile_size = board_surf.get_size()[0]//base
+                    tile = (int(pos[1]/tile_size), int(pos[0]/tile_size))
+                    user_input.selected[tile] = not user_input.selected.get(tile, False)
             
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_SPACE:
                     user_input.signal.set()
+                if event.key == pygame.K_v:
+                    if game.over():
+                        if isinstance(player1, EtaZero):
+                            EtaZeroVisualiser(player1, state_list)
+                            done = True
+                        elif isinstance(player2, EtaZero):
+                            EtaZeroVisualiser(player2, state_list)
+                            done = True
         
         # ------------------------------------ Move making ------------------------------------
         if animations.done() and game.state.outcome == 0 and agent_future.done():
@@ -173,6 +189,7 @@ if __name__ == "__main__":
             
             game.make_move(move)
             game.reset_search_game()
+            state_list.append(game.state)
             
             confidence_str = " "*11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
             playouts_str = " "*11 if not next_player.playouts_played else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
@@ -223,21 +240,9 @@ if __name__ == "__main__":
 
             screen.blit(win_label, win_label_rect)
         else: # else draw the board
-            for row in range(base):
-                for col in range(base):
-                    tile_size = int(board_size/base)
-                    if user_input.selected.get((row, col)) and (row, col) in game.get_takable():
-                        pygame.draw.rect(board_surf, [255,255,255], (tile_size*col + 2, tile_size*row + 2, tile_size-4, tile_size-4))
-                        pygame.draw.rect(board_surf, [0,0,0], (tile_size*col + 4, tile_size*row + 4, tile_size-8, tile_size-8))
-
-                    tile = game.get_at(row, col)
-                    if tile >= 0: 
-                        pygame.draw.rect(board_surf, default_colors[tile], (tile_size*col + 5, tile_size*row + 5, tile_size-10, tile_size-10))
-            
             animations.step()
-            for pos, color, lerp in animations.tiles:
-                pygame.draw.rect(board_surf, default_colors[color], (tile_size*pos[1] + 5 + (tile_size/2 - 5)*lerp, tile_size*pos[0] + 5 + (tile_size/2 - 5)*lerp, (tile_size-10)*(1 - lerp), (tile_size-10)*(1 - lerp)))
-        
+            Renderer.draw_board(board_surf, game.state.board, user_input.selected, animations.tiles)
+       
         # Draw the player name labels
         unselected_col = (196, 187, 173)
         selected_col = (242, 193, 44)
@@ -273,15 +278,7 @@ if __name__ == "__main__":
 
         # Draw the score grid
         grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
-        for row in range(base + 1):
-            pygame.draw.line(grid_surf, [200,200,200], (0, row*cell_size), (cell_size*base, row*cell_size))
-            pygame.draw.line(grid_surf, [200,200,200], (cell_size*(base + 1), row*cell_size), (grid_width, row*cell_size))
-        for col in range(2*base + 2):
-            pygame.draw.line(grid_surf, [200,200,200], (col*cell_size, 0), (col*cell_size, grid_height))
-        for i in range(base):
-            pygame.draw.rect(grid_surf, [255,255,255], ((base - game.get_score(i))*cell_size, i*cell_size, cell_size + 1, cell_size + 1))
-            pygame.draw.rect(grid_surf, default_colors[i], ((base - game.get_score(i))*cell_size + 1, i*cell_size + 1, cell_size - 1, cell_size - 1))
-        
+        Renderer.draw_score_grid(grid_surf, game.state.score)
         score_surf.blit(grid_surf, (int((score_width - grid_width)/2), score_height - grid_height))
 
         # Draw the score numbers
