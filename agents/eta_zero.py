@@ -1,13 +1,17 @@
-from agents.agent import Agent
 import numpy as np
+import pygame
+import time
 import torch
-from math import sqrt
-from networks.value_win_network import ValueWinNetwork
-from networks.policy_value_network import PolicyValueNetwork
-from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
-from dgl_value_win_network import DGLValueWinNetwork
-from sevn import Game, State
+from agents.agent import Agent
 from collections import deque, namedtuple
+from math import sqrt
+from networks.dgl_value_win_network import DGLValueWinNetwork
+from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
+from networks.policy_value_network import PolicyValueNetwork
+from networks.value_win_network import ValueWinNetwork
+from renderer import Renderer
+from sevn import Game, State
+from threading import Thread
 from tqdm import tqdm
 
 class EtaZero(Agent):
@@ -25,34 +29,33 @@ class EtaZero(Agent):
         self.network = network
         self.training = training
         self.progress = 0
-        self.tree_root = None
         self.game_depth = 1
         self.samples_per_move = samples_per_move
 
+        self.network_type = None
         for network_type in self.expected_network_types:
             if isinstance(network, network_type):
                 self.network_type = network_type
-                return
         
-        raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
-                .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
-
+        if not self.network_type:
+            raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
+                    .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
+        
+        if self.network_type == PolicyValueNetwork:
+            pi, _ = self.network.evaluate(self.game.state).detach()
+            self.tree_root = StateNode(self.game.state)
+            self.tree_root.expand(self.game, pi)
+        else:
+            _, win_pred = self.network.evaluate(self.game.state).detach()
+            self.tree_root = StateNode(self.game.state, win_pred=win_pred)
+            self.tree_root.expand_val_win(self.network, self.game)
+        self.move_root = self.tree_root
     
     def select_move(self):
-        if not self.training and self.tree_root: # TODO: fix node finding for when playing a different agent
-            for action in self.tree_root.actions:
-                if action.next_state.state == self.game.state:
-                    self.tree_root = self.tree_root.take_move(action.move)
-                    break
+        if self.move_root.state != self.game.state:
+            self.find_state()
         
-        if not self.tree_root:
-            if self.network_type == PolicyValueNetwork:
-                self.tree_root = StateNode()
-            else:
-                _, win_pred = self.network.evaluate(self.game.state).detach()
-                self.tree_root = StateNode(self.game.state, win_pred=win_pred)
-
-        move_probs = self.calculate_search_probs(n=self.samples_per_move)
+        move_probs = self.sample_and_get_probs(n=self.samples_per_move)
         moves, prob_distr = move_probs
 
         if not self.training:
@@ -60,22 +63,44 @@ class EtaZero(Agent):
         else:
             move = np.random.choice(moves, p=prob_distr)
         
-        if self.tree_root.parent == None: # top of the tree
-            total_W = sum([action.W for action in self.tree_root.actions])
-            total_N = sum([action.N for action in self.tree_root.actions])
+        if self.move_root.parent == None: # top of the tree
+            total_W = sum([action.W for action in self.move_root.actions])
+            total_N = sum([action.N for action in self.move_root.actions])
 
-            self.tree_root.Q = -total_W/total_N
+            self.move_root.Q = -total_W/total_N
             
-        score = self.tree_root.action_dict[move].Q
+        score = self.move_root.action_dict[move].Q
         self.set_confidence((score + 1)/2)
 
-        self.tree_root = self.tree_root.take_move(move)
+        self.move_root = self.move_root.take_move(move)
         self.game_depth += 1
-
 
         return move
     
-    def calculate_search_probs(self, n=1600, tau=1):
+    def select_move_from_state(self, state_node):
+        """
+        Returns the most visited move from the given state.
+        Returns None if there are no visits.
+        """
+
+        if state_node.actions:
+            move_probs = self.get_move_probs(state_node)
+            moves, prob_distr = move_probs
+            move = moves[np.argmax(prob_distr)]
+
+            return move
+
+        return None
+
+    def find_state(self):
+        for action in self.move_root.actions:
+            if action.next_state.state == self.game.state:
+                self.move_root = self.move_root.take_move(action.move)
+                return
+        
+        raise Exception("EtaZero couldn't find current game state. This happens when > 1 move has been made since EtaZero's last move.")
+
+    def sample_and_get_probs(self, n=1600, tau=1):
         """
         Returns a list of tuples, (move, probability) for every valid move
         The sum of all probabilities must be 1
@@ -86,11 +111,15 @@ class EtaZero(Agent):
 
         for i in range(n):
             self.progress = i/n
-            self.probe(self.tree_root)
+            self.probe(self.move_root)
+        
+        return self.get_move_probs(self.move_root)
+    
+    def get_move_probs(self, state_node, tau=1):
 
-        sum_visits = sum([a.N**(1/tau) for a in self.tree_root.actions])
-        moves = [action.move for action in self.tree_root.actions]
-        probs = [a.N**(1/tau)/sum_visits for a in self.tree_root.actions]
+        sum_visits = max(1, sum([a.N**(1/tau) for a in state_node.actions]))
+        moves = [action.move for action in state_node.actions]
+        probs = [a.N**(1/tau)/sum_visits for a in state_node.actions]
         return (np.array(moves), np.array(probs))
     
     def probe(self, node):
@@ -100,7 +129,7 @@ class EtaZero(Agent):
 
             if self.network_type == PolicyValueNetwork:
                 pi, win_pred = self.network.evaluate(self.game.state).detach()
-                node.expand(self.game.state, pi)
+                node.expand(self.game, pi)
             else:
                 win_pred = node.win_pred
                 node.expand_val_win(self.network, self.game)
@@ -130,7 +159,7 @@ class EtaZero(Agent):
         if self.network_type == PolicyValueNetwork:
             raise NotImplementedError("get_training_labels() not implemented for a policy-value network")
         else:
-            node = self.tree_root.parent # we don't train on a terminating node
+            node = self.move_root.parent # we don't train on a terminating node
             while node:
                 data_x.append(node.state.to_dgl_graph())
                 data_y.append(torch.tensor([node.Q, z]))
@@ -143,13 +172,14 @@ class EtaZero(Agent):
         return self.progress
 
 class StateNode:
-    c_puct = 1
+    c_puct = 3
 
     def __init__(self, state, parent=None, win_pred=None):
         self.parent = parent
         self.leaf = True
         self.win_pred = win_pred
         self.state = state
+        self.actions = None
     
     def expand(self, game, pi):
         self.leaf = False
@@ -177,14 +207,15 @@ class StateNode:
         for move in game.get_moves():
             game.make_move(move)
             if game.over():
-                val, win = 1, 1
+                result = game.state.outcome*game.state.next_go
+                val, win = result, result
             else:
                 val, win = network.evaluate(game.state).detach()
             action_data.append((move, StateNode(game.state, self, win_pred=win)))
             vals.append(val)
             game.undo_move()
         
-        vals = torch.tensor(vals)
+        vals = (1 - torch.tensor(vals))/2 # adjust range from [-1,1] to [0,1]
         ps = vals/torch.sum(vals) # normalise vals to sum to 1
         
         self.actions = []
@@ -198,9 +229,12 @@ class StateNode:
             self.action_dict[move] = action
 
     def select_action(self):
+        return self.actions[np.argmax(self.get_action_scores())]
+    
+    def get_action_scores(self):
         sqrt_sum_visits = sqrt(sum([a.N for a in self.actions]))
         scores = np.array([a.Q + self.c_puct*a.P*sqrt_sum_visits/(1 + a.N) for a in self.actions])
-        return self.actions[np.argmax(scores)]
+        return scores        
     
     def take_move(self, move):
         return self.action_dict[move].next_state
@@ -226,8 +260,165 @@ class Action:
     def __hash__(self):
         return self.move.__hash__()
 
-import sevn
-import time
+class EtaZeroVisualiser:
+    def __init__(self, eta_zero, state_list):
+        self.eta_zero = eta_zero
+        self.current_node = self.eta_zero.tree_root
+        self.set_actions()
+        self.undo_history = deque()
+        self.redo_history = deque()
+        self.state_list = state_list
+
+        pygame.init()
+        x_size, y_size = 1000, 600
+        self.screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
+        pygame.display.set_caption("EtaZero Visualiser")
+
+        self.h_gap = 150
+        self.font = pygame.font.SysFont("Bahnschrift", 20)
+        self.clock = pygame.time.Clock()
+
+        # thread = Thread(target = self.begin)
+        # thread.start()
+        self.begin()
+    
+    def begin(self):
+
+        done = False
+        while not done:
+            mx, my = pygame.mouse.get_pos()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    done = True
+
+                if event.type == pygame.VIDEORESIZE:
+                    x_size = max(600, event.w)
+                    y_size = max(600, event.h)
+                    self.screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
+
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if event.button == 1:
+                        i = (mx - 50)//self.h_gap
+                        if 0 <= i < len(self.actions):
+                            self.go_down(self.actions[i][0].move)
+                    elif event.button in [3, 4]:
+                        self.go_up()
+                    elif event.button == 5:
+                        if self.current_node.state in self.state_list and self.current_node.actions:
+                            idx = self.state_list.index(self.current_node.state) + 1
+                            for action in self.current_node.actions:
+                                if action.next_state.state == self.state_list[idx]:
+                                    self.go_down(action.move)
+                                    break
+                    elif event.button == 6:
+                        if len(self.undo_history) > 0:
+                            self.redo_history.append(self.current_node)
+                            self.current_node = self.undo_history.pop()
+                            self.set_actions()
+                    elif event.button == 7:
+                        if len(self.redo_history) > 0:
+                            self.undo_history.append(self.current_node)
+                            self.current_node = self.redo_history.pop()
+                            self.set_actions()
+
+                if event.type == pygame.KEYUP:
+                    if event.key == pygame.K_UP:
+                        self.go_up()
+                    if event.key == pygame.K_DOWN:
+                        move = self.eta_zero.select_move_from_state(self.current_node)
+                        if move:
+                            self.go_down(move)
+
+            self.render()
+            self.clock.tick(60)
+    
+    def go_up(self):
+        if self.current_node.parent:
+            self.undo_history.append(self.current_node)
+            self.redo_history.clear()
+            self.current_node = self.current_node.parent
+            self.set_actions()
+
+    def go_down(self, move):
+        self.undo_history.append(self.current_node)
+        self.redo_history.clear()
+        self.current_node = self.current_node.take_move(move)
+        self.set_actions()
+    
+    def set_actions(self):
+        if self.current_node.actions:
+            self.actions = sorted(
+                zip(self.current_node.actions, self.current_node.get_action_scores()),
+                key=lambda a: -a[0].N
+            )
+        else:
+            self.actions = []
+    
+    def format_move(self, move):
+        return "{0},{1}".format(move.row, move.col)
+
+    def render(self):
+        self.screen.fill([20,20,20])
+
+        white = (255,255,255)
+        blue = (90,100,150)
+        d_blue = (45,50,75)
+
+        margin = 100
+
+        state_lbl = self.font.render(str(self.current_node.state), 1, white)
+        self.screen.blit(state_lbl, (margin - 27, 10))
+
+        pygame.draw.circle(self.screen, blue, (margin, 80), 30)
+
+        prob_lbl = self.font.render("{:.1%}".format((1 + self.current_node.win_pred)/2), 1, white)
+        self.screen.blit(prob_lbl, (margin - 27, 66))
+
+        board_surf = pygame.Surface((120,120), pygame.SRCALPHA, 32)
+        Renderer.draw_board(board_surf, self.current_node.state.board)
+        self.screen.blit(board_surf, (margin + 40, 37))
+
+        base = self.current_node.state.score.base
+        grid_height = 106
+        grid_width = (grid_height - 1)*(2*base + 1)//base + 1
+        grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
+        Renderer.draw_score_grid(grid_surf, self.current_node.state.score)
+        self.screen.blit(grid_surf, (margin + 190, 44))
+
+        for i, (action, score) in enumerate(self.actions):
+            lbl0 = self.font.render(" | ".join(map(self.format_move, action.move)), 1, white)
+            self.screen.blit(lbl0, (margin + self.h_gap*i - 20, 160))
+
+            dot_text_col = (blue, white)
+            if action.next_state.state in self.state_list:
+                dot_text_col = (white, d_blue)
+            
+            pygame.draw.circle(self.screen, dot_text_col[0], (margin + self.h_gap*i, 220), 20)
+            if action.next_state:
+                lbl1 = self.font.render("{:.1%}".format((1 + action.next_state.win_pred)/2), 1, dot_text_col[1])
+                self.screen.blit(lbl1, (margin + self.h_gap*i - 20, 210))
+            
+            lbl2 = self.font.render("P = {:.1%}".format(action.P), 1, white)
+            self.screen.blit(lbl2, (margin + self.h_gap*i - 10, 250))
+
+            lbl3 = self.font.render("N = {:.2f}".format(action.N), 1, white)
+            self.screen.blit(lbl3, (margin + self.h_gap*i - 10, 300))
+
+            lbl4 = self.font.render("W = {:.2f}".format(action.W), 1, white)
+            self.screen.blit(lbl4, (margin + self.h_gap*i - 10, 350))
+
+            lbl5 = self.font.render("Q = {:.1%}".format((1 + action.Q)/2), 1, white)
+            self.screen.blit(lbl5, (margin + self.h_gap*i - 10, 400))
+
+            lbl6 = self.font.render("Sc = {:.3f}".format(score), 1, white)
+            self.screen.blit(lbl6, (margin + self.h_gap*i - 10, 450))
+                
+        
+        for i, state in enumerate(self.state_list):
+            col = blue if state == self.current_node.state else d_blue
+            pygame.draw.circle(self.screen, col, (20, self.screen.get_size()[1]*(i + 1)//(len(self.state_list) + 1)), 10)
+
+        pygame.display.flip()
 
 if __name__ == "__main__":
     net = DGLValueWinNetwork()
@@ -250,10 +441,6 @@ if __name__ == "__main__":
     
     print("total: {:.4f} s".format((time.perf_counter() - t)))
     print("num moves:", move_count)
-    print("num states:", sevn.g_count)
-    # for t in [net.t0, net.t1, net.t2, net.t3]:
-    #     avg = sum(t)/len(t)
-    #     print("{:.4f} ms".format(1000*avg))
     
     for label, move in zip(eta.generate_training_labels(), moves):
         print(label, move)
