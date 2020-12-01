@@ -1,6 +1,6 @@
+from networks.network import Network
 
-
-class PolicyValueNetwork:
+class PolicyValueNetwork(Network):
     
     def evaluate(self, state):
         """

@@ -3,8 +3,8 @@ from agents.agent import Agent
 class Human(Agent):
     name = "Player"
 
-    def __init__(self, game, user_input, num=None):
-        super().__init__(game, num)
+    def __init__(self, user_input, num=None):
+        super().__init__(num)
         self.user_input = user_input
 
     def select_move(self):

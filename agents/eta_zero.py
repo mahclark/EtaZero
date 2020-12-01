@@ -23,14 +23,14 @@ class EtaZero(Agent):
         ValueWinNetwork
     ]
 
-    def __init__(self, game, network, training=False, samples_per_move=50, num=None):
-        super().__init__(game, num)
+    def __init__(self, network, training=False, samples_per_move=50, num=None):
+        super().__init__(num)
 
         self.network = network
         self.training = training
         self.progress = 0
-        self.game_depth = 1
         self.samples_per_move = samples_per_move
+        self.elo_id = self.name + "-" + self.network.elo_id
 
         self.network_type = None
         for network_type in self.expected_network_types:
@@ -40,6 +40,11 @@ class EtaZero(Agent):
         if not self.network_type:
             raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
                     .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
+    
+    def set_game(self, game):
+        super().set_game(game)
+        
+        self.game_depth = 1
         
         if self.network_type == PolicyValueNetwork:
             pi, _ = self.network.evaluate(self.game.state).detach()

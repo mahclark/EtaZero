@@ -13,7 +13,7 @@ class TreeSearch:
         # E.g. [(2,4), (1,2)] corresponds to 5/8 total progress
         self.progress_layers = []
     
-    def playout(self, choice_fn, pre_fn=None, record_val=None):
+    def playout(self, choice_fn, pre_fn=None, terminate_fn=None, record_val=None):
         """
         Plays a game to completion, given a function to choose moves.
         Returns the result and undos all moves made.
@@ -26,12 +26,16 @@ class TreeSearch:
         # Check if the game has finished
         if self.game.state.outcome != 0:
             return self.game.state.outcome
+            
+        # Check if we need to terminate
+        if terminate_fn and terminate_fn():
+            return None
         
         # Chose, make the move and recurse
         chosen_move = choice_fn()
 
         self.game.make_move(chosen_move)
-        val = self.playout(choice_fn, pre_fn, record_val)
+        val = self.playout(choice_fn, pre_fn, terminate_fn, record_val)
         self.game.undo_move()
 
         # Record the value if necessary

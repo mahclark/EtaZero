@@ -7,22 +7,27 @@ class UCTAgent(Agent):
 
     name = "UCT Agent"
     C = 0.5
-    playouts_per_move = 100
+    # playouts_per_move = 100
 
-    def __init__(self, game, num=None):
-        super().__init__(game, num)
+    def __init__(self, max_evals_per_turn=9999, num=None):
+        super().__init__(num)
+        self.max_evals_per_turn = max_evals_per_turn
+        self.elo_id = "uct-{}".format(self.max_evals_per_turn)
+
+    def set_game(self, game):
+        super().set_game(game)
         self.visits = {}
         self.wins = {}
         self.tree_search = TreeSearch(game)
 
-        self.move_progress = 0
+        self.turn_evals = 0
 
     def select_move(self):
-        self.playouts_played = 0
+        # tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(self.game.base) for x in range(self.game.base)])
 
-        tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(self.game.base) for x in range(self.game.base)])
-
-        self.playouts_per_move = int((400 + 0.01*(49 - tiles)**3.6)/len(self.game.get_moves()))
+        # self.playouts_per_move = int((400 + 0.01*(49 - tiles)**3.6)/len(self.game.get_moves()))
+        self.evals_per_move = self.max_evals_per_turn//len(self.game.get_moves())
+        self.turn_evals = 0
         
         best_move, score = self.tree_search.best_move_and_score(
             get_score=self._get_value
@@ -31,29 +36,41 @@ class UCTAgent(Agent):
         self.set_confidence((score*self.game.state.next_go + 1)/2)
 
         return best_move
-    
 
     def _get_value(self):
         playouts = []
-        for i in range(self.playouts_per_move):
-            self.move_progress = i
-            playouts.append(
-                self.tree_search.playout(
-                    pre_fn=self._pre_fn,
-                    choice_fn=functools.partial(
-                        self.tree_search.best_move,
-                        self._get_heuristic
-                    ),
-                    record_val=self._record_state
-            ))
-            self.playouts_played += 1
-        return sum(playouts)/self.playouts_per_move
+        # for i in range(self.playouts_per_move):
+        self.move_evals = 0
+        while self.move_evals < self.evals_per_move:
+            result = self.tree_search.playout(
+                pre_fn=self._pre_fn,
+                choice_fn=functools.partial(
+                    self.tree_search.best_move,
+                    self._get_heuristic
+                ),
+                terminate_fn=self._terminate_fn,
+                record_val=self._record_state
+            )
+            if result:
+                playouts.append(result)
+                
+        return sum(playouts)/len(playouts)
     
     def _pre_fn(self):
+        self.move_evals += 1
+        self.turn_evals += 1
         self.visits[self.game.state] = self.visits.get(self.game.state, 0) + 1
     
+    def _terminate_fn(self):
+        if self.move_evals >= self.evals_per_move:
+            return True
+        return False
+    
     def _record_state(self, val):
-        self.wins[self.game.state] = self.wins.get(self.game.state, 0) + (val == self.game.state.next_go)
+        if val == None: # We terminated the playout early and should undo changes to self.visits
+            self.visits[self.game.state] -= 1
+        else:
+            self.wins[self.game.state] = self.wins.get(self.game.state, 0) + (val == self.game.state.next_go)
         
     def _get_heuristic(self):
         """
@@ -85,4 +102,5 @@ class UCTAgent(Agent):
         return (s_i/n_i + self.C*sqrt(log(N)/n_i)) * prev_player
     
     def get_progress(self):
-        return self.tree_search.get_progress(self.tree_search.progress_layers[:1] + [(self.move_progress, self.playouts_per_move)])
+        # return self.tree_search.get_progress(self.tree_search.progress_layers[:1] + [(self.move_progress, self.playouts_per_move)])
+        return self.turn_evals/self.max_evals_per_turn

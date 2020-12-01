@@ -42,6 +42,7 @@ class Game:
                 next_go=1 # Player 1 or -1 to play?
             )
         else:
+            self.base = state.score.base
             self.state = state
         
         self.search_game = None # Game object used by agents to search the state tree
@@ -72,7 +73,7 @@ class Game:
     
     def over(self):
         return self.state.outcome != 0
-    
+
     def make_move(self, move):
         """
         Creates a new State (the result after the move has been made).
@@ -82,8 +83,9 @@ class Game:
             self.state = self.state.children[move]
             return
 
+        color = self.get_at(next(iter(move)))
         board = self.state.board.make_move(move)
-        score = self.state.score.make_move(move, self.get_at(next(iter(move))), self.state.next_go)
+        score = self.state.score.make_move(move, color, self.state.next_go)
         
         self.state = State(
             board=board,

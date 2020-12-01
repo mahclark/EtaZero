@@ -8,9 +8,9 @@ class MinimaxMCTS(Agent):
     name = "Minimax MCTS"
     playouts_per_move = 2000
     progress_layers = []
-
-    def __init__(self, game, num=None):
-        super().__init__(game, num)
+    
+    def set_game(self, game):
+        super().set_game(game)
         self.tree_search = TreeSearch(game)
 
     def select_move(self):
