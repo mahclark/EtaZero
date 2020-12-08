@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
@@ -24,36 +25,54 @@ class Arena:
             reader = csv.reader(ratings_file)
 
             self.ratings = {}
+            self.history = {}
             for row in reader:
-                key = row[0]
-                self.ratings[key] = float(row[1])
+                elo_id, rating, vs_id, n_games = row
+                vs_id = None if vs_id == "null" else vs_id
+
+                self.ratings[elo_id] = float(rating)
+                if vs_id:
+                    self.history[elo_id] = (vs_id, int(n_games))
         
-    def battle(self, agentA, agentB, game_pairs=10, base=7):
-        if agentA.elo_id == agentB.elo_id:
+    def battle(self, new_agent, fixed_agent, game_pairs=10, base=7):
+        if new_agent.elo_id == fixed_agent.elo_id:
             raise Exception("Agents should not have the same elo_id.")
-                
-        rA = self.get_rating(agentA)
-        rB = self.get_rating(agentB)
+
+        vs_id, vs_games = self.history.get(new_agent.elo_id, (None, None))
+        if vs_id and vs_id != fixed_agent.elo_id:
+            raise Exception("Battling against a second agent is not supported.")
+
+        rA = self.get_rating(new_agent)
+        rB = self.get_rating(fixed_agent)
+
+        wins = 0
+        games = 0
+
+        if vs_id:
+            win_rate = self.expected_result(rA, rB)
+            wins = win_rate*vs_games
+            games = vs_games
+
     
         for _ in range(game_pairs):
             state = Game(base).state
 
-            # expected results after 2 games
-            eA = 2*self.expected_result(rA, rB)
-            eB = 2 - eA
+            outcome1 = self.play_game(state, new_agent, fixed_agent)
+            outcome2 = self.play_game(state, fixed_agent, new_agent)
 
-            outcome1 = self.play_game(state, agentA, agentB)
-            outcome2 = self.play_game(state, agentB, agentA)
+            wins += outcome1 + 1 - outcome2
+            games += 2
 
-            rA += self.K*(outcome1 + 1 - outcome2 - eA)
-            rB += self.K*(outcome2 + 1 - outcome1 - eB)
-        
-        self.ratings[agentA.elo_id] = rA
-        self.ratings[agentB.elo_id] = rB
+        win_rate = wins/games
+        print(wins, games, win_rate)
+        print(rB)
+        self.ratings[new_agent.elo_id] = rB - 400*math.log(1/win_rate - 1)/math.log(10)
+        self.history[new_agent.elo_id] = (fixed_agent.elo_id, games)
         
         writer = csv.writer(open(self.elo_rating_path, 'w', newline=''))
         for elo_id, rating in self.ratings.items():
-            writer.writerow([elo_id, rating])
+            vs_id, n_games = self.history.get(elo_id, ("null","null"))
+            writer.writerow([elo_id, rating, vs_id, n_games])
     
     def get_rating(self, agent):
         return self.ratings.get(agent.elo_id, self.default_rating)
@@ -80,17 +99,5 @@ if __name__ == "__main__":
     arena = Arena()
     a1 = RandomAgent()
     a2 = UCTAgent(max_evals_per_turn=500)
-    a3 = UCTAgent(max_evals_per_turn=999)
-    a4 = UCTAgent(max_evals_per_turn=9999)
-
-    agents = [a1,a2,a3,a4]
-
-    c = 0
-    for _ in range(10):
-        for i in range(len(agents)):
-            for j in range(i):
-                t = time.perf_counter()
-                arena.battle(agents[i], agents[j], game_pairs=1, base=5)
-                print(time.perf_counter() - t)
-                c += 1
-                print("played {} games".format(c))
+    
+    arena.battle(a2, a1, game_pairs=50, base=5)
