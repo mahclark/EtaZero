@@ -1,6 +1,8 @@
 import csv
+import gc
 import math
 import os
+import sys
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
 from sevn import Game
@@ -34,7 +36,7 @@ class Arena:
                 if vs_id:
                     self.history[elo_id] = (vs_id, int(n_games))
         
-    def battle(self, new_agent, fixed_agent, game_pairs=10, base=7):
+    def battle(self, new_agent, fixed_agent, game_pairs=10, base=7, dynamic=False):
         if new_agent.elo_id == fixed_agent.elo_id:
             raise Exception("Agents should not have the same elo_id.")
 
@@ -52,9 +54,10 @@ class Arena:
             win_rate = self.expected_result(rA, rB)
             wins = win_rate*vs_games
             games = vs_games
-
-    
-        for _ in range(game_pairs):
+        
+        original_count = games
+        
+        def play_game_pair(wins, games):
             state = Game(base).state
 
             outcome1 = self.play_game(state, new_agent, fixed_agent)
@@ -62,6 +65,17 @@ class Arena:
 
             wins += outcome1 + 1 - outcome2
             games += 2
+
+            return wins, games
+    
+        for _ in range(game_pairs):
+            wins, games = play_game_pair(wins, games)
+        
+        while dynamic and (wins == games or wins == games//2) and games - original_count < 2*game_pairs:
+            wins, games = play_game_pair(wins, games)
+        
+        if wins == games:
+            games += 1
 
         win_rate = wins/games
         print(wins, games, win_rate)
@@ -91,13 +105,33 @@ class Arena:
         while not game.over():
             game.make_move(p.select_move())
             p = p1 if p == p2 else p2
+
+        gc.collect()
         
         return (1 + game.state.outcome)//2
 
+from pympler import muppy, summary
 import time
 if __name__ == "__main__":
-    arena = Arena()
-    a1 = RandomAgent()
-    a2 = UCTAgent(max_evals_per_turn=500)
-    
-    arena.battle(a2, a1, game_pairs=50, base=5)
+
+    for i in range(10):
+        a1 = RandomAgent()#get_agents()[i]
+        a2 = UCTAgent(max_evals_per_turn=2000)#get_agents()[i+1]
+        p = a1
+
+        t = time.perf_counter()
+
+        game = Game(7)
+        a1.set_game(game)
+        a2.set_game(game)
+
+        while not game.over():
+            game.make_move(p.select_move())
+            p = a1 if p == a2 else a2
+        
+        print("Game {}, time: {:.4f}".format(i, time.perf_counter() - t))
+        gc.collect()
+        
+        all_objects = muppy.get_objects()
+        sum1 = summary.summarize(all_objects)
+        summary.print_(sum1)

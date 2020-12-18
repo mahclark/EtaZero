@@ -5,7 +5,7 @@ import pygame
 import time
 import sys
 import traceback
-from sevn import Game, State, Score, Board
+from sevn import Board, Game, Score, State
 from agents.random_agent import RandomAgent
 from agents.human import Human
 from agents.mcts_agent import MinimaxMCTS
@@ -114,8 +114,11 @@ if __name__ == "__main__":
     user_input = UserInput()
 
     game.reset_search_game()
-    player2 = EtaZero(game.search_game, torch.load("models\\2020-11-27-11-29-40.pt"), samples_per_move=200)#, DummyPVNetwork())
-    player1 = UCTAgent(game.search_game)#,user_input)
+    player2 = Human(user_input)#EtaZero(game.search_game, torch.load("models\\2020-11-27-11-29-40.pt"), samples_per_move=200)#, DummyPVNetwork())
+    player1 = UCTAgent()#game.search_game)#,user_input)
+
+    player1.set_game(game.search_game)
+    player2.set_game(game.search_game)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
     result_width = 3 + 2*base + base**2

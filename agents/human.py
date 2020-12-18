@@ -1,4 +1,5 @@
 from agents.agent import Agent
+from sevn import Move
 
 class Human(Agent):
     name = "Player"
@@ -22,7 +23,7 @@ class Human(Agent):
             if self.user_input.terminate:
                 return
 
-            move = frozenset({
+            move = Move({
                 tile
                 for tile, selected in self.user_input.selected.items()
                 if selected and tile in self.game.get_takable()

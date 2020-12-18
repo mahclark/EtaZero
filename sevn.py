@@ -79,8 +79,8 @@ class Game:
         Creates a new State (the result after the move has been made).
         The states are memoised so they don't need to be recalculated.
         """
-        if move in self.state.children:
-            self.state = self.state.children[move]
+        if move.next_state:
+            self.state = move.next_state
             return
 
         color = self.get_at(next(iter(move)))
@@ -95,7 +95,7 @@ class Game:
             move=move
         )
 
-        self.state.parent.children[move] = self.state
+        move.next_state = self.state
     
     def undo_move(self):
         """
@@ -123,6 +123,24 @@ class Game:
             state.score.base,
             state
         )
+
+class Move:
+
+    def __init__(self, move_set):
+        self.tiles = tuple(sorted(list(move_set)))
+        self.next_state = None
+
+    def __getitem__(self, index):
+        return self.tiles[index]
+    
+    def __len__(self):
+        return len(self.tiles)
+
+    def __hash__(self):
+        return self.tiles.__hash__()
+    
+    def __eq__(self, other):
+        return other and self.tiles == other.tiles
 
 class Board:
     """
@@ -156,22 +174,22 @@ class Board:
             and (self.get_at(row, col-1) == -1 or self.get_at(row, col+1) == -1)
         ]
 
-        # Dictionary of colors -> list of takable tiles of that color.
-        takable_colors = {
-            i: [
+        # List of takable tiles for each color.
+        takable_colors = [
+            [
                 tile
                 for tile in self.get_takable()
                 if self.get_at(tile) == i
             ]
             for i in range(self.base)
-        }
+        ]
 
         # All possible next moves.
-        self.moves = {
-            frozenset(comb)
-            for tiles in takable_colors.values()
+        self.moves = [
+            comb
+            for tiles in takable_colors
             for comb in self._all_combs(tiles)
-        }
+        ]
 
         self.hash_val = hash(self.board)
     
@@ -182,11 +200,11 @@ class Board:
         """
         combs = []
         for b in range(1, 2**len(a)):
-            combs.append({
+            combs.append(Move({
                 a[i]
                 for i in range(len(a))
                 if (b >> i) & 1 == 1
-            })
+            }))
         
         return combs
     
@@ -402,8 +420,7 @@ class Relation:
 
 class State:
     """
-    Representation of the game state.
-    Immutable except self.children.
+    Immutable representation of the game state.
     """
 
     def __init__(self, board, score, next_go, parent=None, move=None):
@@ -411,7 +428,6 @@ class State:
         self.score = score
         self.next_go = next_go
         self.parent = parent
-        self.children = {}
         self.dgl_graph = None
 
         if score.get_player_with_all() != 0:
