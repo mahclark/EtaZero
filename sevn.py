@@ -23,6 +23,9 @@ class Pos(NamedTuple):
     
     def __str__(self):
         return "{0},{1}".format(self.row, self.col)
+    
+    def __repr__(self):
+        return self.__str__()
 
 class Game:
     """
@@ -127,7 +130,7 @@ class Game:
 class Move:
 
     def __init__(self, move_set):
-        self.tiles = tuple(sorted(list(move_set)))
+        self.tiles = tuple(map(lambda p: Pos(*p), sorted(list(move_set))))
         self.next_state = None
 
     def __getitem__(self, index):
@@ -141,6 +144,13 @@ class Move:
     
     def __eq__(self, other):
         return other and self.tiles == other.tiles
+    
+    def __str__(self):
+        strs = ["{},{}".format(tile.row, tile.col) for tile in self.tiles]
+        return ";".join(strs)
+    
+    def __repr__(self):
+        return self.__str__()
 
 class Board:
     """
@@ -428,6 +438,7 @@ class State:
         self.score = score
         self.next_go = next_go
         self.parent = parent
+        self.move = move
         self.dgl_graph = None
 
         if score.get_player_with_all() != 0:
@@ -475,6 +486,16 @@ class State:
     
     def __ne__(self, other):
         return not self.__eq__(other)
+    
+    def get_game_str(self):
+        if self.parent == None:
+            return str(self) + "|"
+
+        prev = self.parent.get_game_str()
+        if prev[-1] != "|":
+            prev += "/"
+
+        return prev + str(self.move)
 
     @staticmethod
     def from_str(s):
