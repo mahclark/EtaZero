@@ -488,6 +488,11 @@ class State:
         return not self.__eq__(other)
     
     def get_game_str(self):
+        """
+        Returns string representing the game so far, ending at this state.
+        The initial state is prepended, followed by |
+        Any moves made subsequently are appended with / as the separator.
+        """
         if self.parent == None:
             return str(self) + "|"
 
