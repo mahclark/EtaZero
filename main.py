@@ -93,7 +93,7 @@ It is responsible for rendering the game visuals and asking agents for their mov
 """
 
 if __name__ == "__main__":
-    base = 7
+    base = 3
     
     ### Random game state
     game = Game(base)#.from_str("1/aaaaa/eecea.ddbbd.bbecd.abaac.cdeac")
@@ -207,8 +207,11 @@ if __name__ == "__main__":
             
             next_player = player1 if game.state.next_go == 1 else player2
 
-            if game.state.outcome == 0:
+            if not game.over():
                 agent_future = agent_executor.submit(next_player.select_move)
+            
+            else:
+                print(game.state.get_game_str())
 
         # ------------------------------------- Rendering -------------------------------------
         screen.fill([177, 161, 179])

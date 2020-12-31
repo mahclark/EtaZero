@@ -66,7 +66,9 @@ class EtaZero(Agent):
         if not self.training:
             move = moves[np.argmax(prob_distr)]
         else:
-            move = np.random.choice(moves, p=prob_distr)
+            np_moves = np.empty(len(moves), object)
+            np_moves[:] = moves
+            move = np.random.choice(np_moves, p=prob_distr)
         
         if self.move_root.parent == None: # top of the tree
             total_W = sum([action.W for action in self.move_root.actions])
@@ -125,7 +127,7 @@ class EtaZero(Agent):
         sum_visits = max(1, sum([a.N**(1/tau) for a in state_node.actions]))
         moves = [action.move for action in state_node.actions]
         probs = [a.N**(1/tau)/sum_visits for a in state_node.actions]
-        return (np.array(moves), np.array(probs))
+        return (moves, np.array(probs))
     
     def probe(self, node):
         if node.is_leaf():
@@ -166,7 +168,7 @@ class EtaZero(Agent):
         else:
             node = self.move_root.parent # we don't train on a terminating node
             while node:
-                data_x.append(node.state.to_dgl_graph())
+                data_x.append(node.state)
                 data_y.append(torch.tensor([node.Q, z]))
                 node = node.parent
                 z = -z

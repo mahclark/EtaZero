@@ -3,13 +3,15 @@ import datetime
 import numpy as np
 import os
 import torch
-from torch import nn
-from tqdm import tqdm
+from agents.eta_zero import EtaZero
+from agents.random_agent import RandomAgent
+from agents.uct_agent import UCTAgent
+from arena import Arena
+from math import ceil
 from networks.dgl_value_win_network import DGLValueWinNetwork
 from sevn import Game, State
-from agents.random_agent import RandomAgent
-from agents.eta_zero import EtaZero
-from agents.uct_agent import UCTAgent
+from torch import nn
+from tqdm import tqdm
 
 def takable_label_fn(g, state):
     """
@@ -23,9 +25,9 @@ def takable_label_fn(g, state):
 
 class Trainer:
 
-    def __init__(self, model=None, load_path=None):
+    def __init__(self, model=None, load_path=None, base_path=""):
         if load_path:
-            model = torch.load(load_path)
+            model = torch.load(base_path + load_path)
 
         if not model:
             model = DGLValueWinNetwork(
@@ -34,16 +36,22 @@ class Trainer:
             )
 
         self.model = model
-        self.prev_model_path = None
+        
+        self.training_data_path = os.path.join(
+            base_path,
+            "training_data"
+        )
 
     def _default_data_generator(self, num_games=50, game_base=7):
         data = []
+        state_data = []
         labels = []
 
         print("generating data from {} games...".format(num_games))
-        for _ in tqdm(range(num_games)):
+        for i in range(num_games):
             game = Game(game_base)
-            eta_zero = EtaZero(self.model, training=True, samples_per_move=20)
+
+            eta_zero = EtaZero(self.model, training=True, samples_per_move=50)
             eta_zero.set_game(game)
             
             while not game.over():
@@ -51,20 +59,42 @@ class Trainer:
             
             data_x, data_y = eta_zero.generate_training_labels()
 
-            data += data_x
+            data += list(map(lambda state: state.to_dgl_graph(), data_x))
+            state_data += data_x
             labels += data_y
+
+            with open(os.path.join(self.training_data_path, "game_data.csv"),"a",newline="") as game_data:
+                writer = csv.writer(game_data)
+                writer.writerow([
+                    datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
+                    eta_zero.elo_id,
+                    game.state.get_game_str()
+                ])
+
+            # print progress
+            j = 10*(i+1)//num_games
+            if ceil(num_games*j/10) == i+1:
+                print(f"{j/10:.0%}")
+        
+        with open(os.path.join(self.training_data_path, f"{eta_zero.elo_id}.csv"),"w",newline="") as training_data:
+            for x, y in zip(state_data, labels):
+                writer = csv.writer(training_data)
+                writer.writerow([
+                    str(x),     # x is game state
+                    *y.tolist() # y is pytorch tensor
+                ])
         
         return data, labels
     
     def train(
         self,
         loss_fn=nn.MSELoss(reduction='sum'),
-        n_epochs=10,
+        n_epochs=20,
         lr=0.001, # learning rate
         l2norm=10e-4, # L2 norm coefficient
         batch_size=32,
         data_fn=None,
-        history_path=None):
+        history_path="history.csv"):
 
         if data_fn == None:
             data_fn = self._default_data_generator
@@ -124,18 +154,33 @@ class Trainer:
             print(report)
         
         if history_path != None:
-            writer = csv.DictWriter(open(history_path, 'a', newline=''), fieldnames=["Epoch","MSELoss","ValAcc"])
+            history_file = open(os.path.join(self.training_data_path, history_path), "a", newline="")
+            writer = csv.DictWriter(history_file, fieldnames=["Epoch","MSELoss","ValAcc"])
             for epoch, loss, acc in history:
                 writer.writerow({"Epoch":epoch, "MSELoss":loss, "ValAcc":acc})
-        
-        # if self.prev_model_path != None:
-        #     prev_model = torch.load(self.prev_model_path)
-        #     self.compare(prev_model)
+            history_file.close()
         
         path = self.get_save_path()
         self.save_model(path)
-        self.prev_model_path = path
-        print("model saved at path:", path)
+        print(f"Model saved:\n\tmodel: \t{self.model.id}\n\tpath:  \t{path}")
+    
+    def eta_training_loop(self, loops, base_agent=None):
+        prev_agent = UCTAgent(1000) if not base_agent else base_agent
+
+        for i in range(loops):
+            self.model.refresh_id()
+
+            print(f"\n==================== Training iteration {i} ====================")
+            self.train()
+
+            print(f"\nArena vs {prev_agent.elo_id}:")
+            arena = Arena()
+            arena.battle(
+                EtaZero(self.model, training=False, samples_per_move=20),
+                prev_agent
+            )
+
+            prev_agent = EtaZero(self.model, training=False, samples_per_move=20)
     
     def save_model(self, path):
         torch.save(self.model, path)
@@ -175,49 +220,50 @@ class Trainer:
             writer.writerow([state, value])
             value *= -1
 
-if __name__ == "__main__":
+def get_win_data():
     path = "uct_win_data/data.csv"
-    
-    # for i in range(100):
-    #     Trainer.generate_uct_win_data(path, base=5)
-    
-    def get_win_data():
-        with open(path) as data_file:
-            reader = csv.reader(data_file)
+    with open(path) as data_file:
+        reader = csv.reader(data_file)
 
-            data = []
-            labels = []
-            for row in reader:
-                state = State.from_str(row[0])
-                if state.outcome == 0 and sum(state.board.get_at(x,y) > -1 for x in range(5) for y in range(5)) < 10:
-                    data.append(state.to_dgl_graph())
-                    labels.append(torch.tensor([float(row[1])]))
+        data = []
+        labels = []
+        for row in reader:
+            state = State.from_str(row[0])
+            if state.outcome == 0 and sum(state.board.get_at(x,y) > -1 for x in range(5) for y in range(5)) < 10:
+                data.append(state.to_dgl_graph())
+                labels.append(torch.tensor([float(row[1])]))
+    
+    print(len(data))
+
+    np.random.seed(42)
+    idxs = np.random.choice(np.arange(0, len(data)), replace=False, size=int(len(data)*.8))
+    idxs.sort()
+    val_idxs = []
+    j = 0
+    for i in range(len(data)):
+        while j < len(idxs)-1 and idxs[j] < i:
+            j += 1
         
-        print(len(data))
+        if idxs[j] != i:
+            val_idxs.append(i)
+    val_idxs = np.array(val_idxs)
 
-        np.random.seed(42)
-        idxs = np.random.choice(np.arange(0, len(data)), replace=False, size=int(len(data)*.8))
-        idxs.sort()
-        val_idxs = []
-        j = 0
-        for i in range(len(data)):
-            while j < len(idxs)-1 and idxs[j] < i:
-                j += 1
-            
-            if idxs[j] != i:
-                val_idxs.append(i)
-        val_idxs = np.array(val_idxs)
+    def get(v, i):
+        return [v[j] for j in i]
 
-        def get(v, i):
-            return [v[j] for j in i]
-
-        x = get(data, idxs)
-        y = get(labels, idxs)
-        val = get(data, val_idxs)
-        val_y = get(labels, val_idxs)
-        
-        return x, y, val, val_y
+    x = get(data, idxs)
+    y = get(labels, idxs)
+    val = get(data, val_idxs)
+    val_y = get(labels, val_idxs)
     
-    model = DGLValueWinNetwork(dims=[3,10,10,1])
+    return x, y, val, val_y
+
+from time import perf_counter
+
+if __name__ == "__main__":
+    
+    model = DGLValueWinNetwork(dims=[3,64,64,32,32,16,8,2])
     trainer = Trainer(model=model)#, load_path="models/2020-12-18-23-06-15.pt")
-    trainer.train(data_fn=get_win_data, n_epochs=20, history_path="uct_win_data/train_history.csv")
+    t = perf_counter()
+    trainer.eta_training_loop(2)
+    print(f"total time: {perf_counter() - t:.1f}s")

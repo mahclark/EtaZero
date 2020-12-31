@@ -78,8 +78,10 @@ class Arena:
             games += 1
 
         win_rate = wins/games
-        print(wins, games, win_rate)
-        print(rB)
+
+        print(f"Won {wins} of {games}.")
+        print(f"New elo: {rB}.")
+
         self.ratings[new_agent.elo_id] = rB - 400*math.log(1/win_rate - 1)/math.log(10)
         self.history[new_agent.elo_id] = (fixed_agent.elo_id, games)
         
@@ -105,6 +107,9 @@ class Arena:
         while not game.over():
             game.make_move(p.select_move())
             p = p1 if p == p2 else p2
+            all_objects = muppy.get_objects()
+            sum1 = summary.summarize(all_objects)# Prints out a summary of the large objects
+            summary.print_(sum1)
 
         gc.collect()
         
@@ -113,25 +118,9 @@ class Arena:
 from pympler import muppy, summary
 import time
 if __name__ == "__main__":
-
-    for i in range(10):
-        a1 = RandomAgent()#get_agents()[i]
-        a2 = UCTAgent(max_evals_per_turn=2000)#get_agents()[i+1]
-        p = a1
-
-        t = time.perf_counter()
-
-        game = Game(7)
-        a1.set_game(game)
-        a2.set_game(game)
-
-        while not game.over():
-            game.make_move(p.select_move())
-            p = a1 if p == a2 else a2
-        
-        print("Game {}, time: {:.4f}".format(i, time.perf_counter() - t))
-        gc.collect()
-        
-        all_objects = muppy.get_objects()
-        sum1 = summary.summarize(all_objects)
-        summary.print_(sum1)
+    arena = Arena()
+    arena.battle(UCTAgent(7000), RandomAgent(), game_pairs=1, base=7)
+    # game = Game(7)
+    # ss = game.search_game
+    # print(arena.play_game(ss, UCTAgent(5000), UCTAgent(1000)))
+    # print(arena.play_game(ss, UCTAgent(1000), UCTAgent(5000)))
