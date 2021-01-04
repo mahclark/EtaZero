@@ -9,6 +9,7 @@ from agents.uct_agent import UCTAgent
 from arena import Arena
 from math import ceil
 from networks.dgl_value_win_network import DGLValueWinNetwork
+from pympler import muppy, summary
 from sevn import Game, State
 from torch import nn
 from tqdm import tqdm
@@ -53,34 +54,45 @@ class Trainer:
 
             eta_zero = EtaZero(self.model, training=True, samples_per_move=50)
             eta_zero.set_game(game)
+            eta_zero_id = eta_zero.elo_id
             
             while not game.over():
                 game.make_move(eta_zero.select_move())
-            
-            data_x, data_y = eta_zero.generate_training_labels()
 
-            data += list(map(lambda state: state.to_dgl_graph(), data_x))
-            state_data += data_x
+            game_str = game.state.get_game_str()
+            
+            state_strs, state_graphs, data_y = eta_zero.generate_training_labels()
+
+            del eta_zero
+            del game
+
+            data += state_graphs
+            state_data += state_strs
             labels += data_y
 
             with open(os.path.join(self.training_data_path, "game_data.csv"),"a",newline="") as game_data:
                 writer = csv.writer(game_data)
                 writer.writerow([
                     datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
-                    eta_zero.elo_id,
-                    game.state.get_game_str()
+                    eta_zero_id,
+                    game_str
                 ])
+            
 
             # print progress
             j = 10*(i+1)//num_games
             if ceil(num_games*j/10) == i+1:
                 print(f"{j/10:.0%}")
+                
+                # all_objects = muppy.get_objects()
+                # sum1 = summary.summarize(all_objects)
+                # summary.print_(sum1)
         
-        with open(os.path.join(self.training_data_path, f"{eta_zero.elo_id}.csv"),"w",newline="") as training_data:
+        with open(os.path.join(self.training_data_path, f"{eta_zero_id}.csv"),"w",newline="") as training_data:
             for x, y in zip(state_data, labels):
                 writer = csv.writer(training_data)
                 writer.writerow([
-                    str(x),     # x is game state
+                    x,          # x is game state string
                     *y.tolist() # y is pytorch tensor
                 ])
         
@@ -120,7 +132,7 @@ class Trainer:
             epoch_loss = 0
             self.model.train()
 
-            batch_count = int(len(X_train) / batch_size)
+            batch_count = len(X_train) // batch_size
             for _ in range(batch_count):
                 sample_indexes = np.random.randint(len(X_train), size=batch_size)
                 
@@ -180,6 +192,7 @@ class Trainer:
                 prev_agent
             )
 
+            del prev_agent
             prev_agent = EtaZero(self.model, training=False, samples_per_move=20)
     
     def save_model(self, path):
@@ -264,6 +277,5 @@ if __name__ == "__main__":
     
     model = DGLValueWinNetwork(dims=[3,64,64,32,32,16,8,2])
     trainer = Trainer(model=model)#, load_path="models/2020-12-18-23-06-15.pt")
-    t = perf_counter()
-    trainer.eta_training_loop(2)
-    print(f"total time: {perf_counter() - t:.1f}s")
+    
+    trainer._default_data_generator(num_games=4, game_base=5)

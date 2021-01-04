@@ -161,19 +161,21 @@ class EtaZero(Agent):
         if self.game_depth%2 != 0:
             z = -z
 
-        data_x = []
+        state_strs = []
+        state_graphs = []
         data_y = []
         if self.network_type == PolicyValueNetwork:
             raise NotImplementedError("get_training_labels() not implemented for a policy-value network")
         else:
             node = self.move_root.parent # we don't train on a terminating node
             while node:
-                data_x.append(node.state)
+                state_strs.append(str(node.state))
+                state_graphs.append(node.state.to_dgl_graph())
                 data_y.append(torch.tensor([node.Q, z]))
                 node = node.parent
                 z = -z
         
-        return (data_x, data_y)
+        return (state_strs, state_graphs, data_y)
     
     def get_progress(self):
         return self.progress
