@@ -5,6 +5,7 @@ import os
 import sys
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
+from math import ceil
 from sevn import Game
 
 class Arena:
@@ -16,9 +17,8 @@ class Arena:
     default_rating = 1500
     K = 32
 
-    def __init__(self, path=None):
-        if path:
-            self.elo_rating_path = path
+    def __init__(self, base_path=""):
+        self.elo_rating_path = os.path.join(base_path, self.elo_rating_path)
         
         if not os.path.exists(self.elo_rating_path):
             open(self.elo_rating_path, 'w').close()
@@ -44,6 +44,8 @@ class Arena:
         if vs_id and vs_id != fixed_agent.elo_id:
             raise Exception("Battling against a second agent is not supported.")
 
+        print(f"{2*game_pairs} games {new_agent.elo_id} vs {fixed_agent.elo_id} (fixed):")
+
         rA = self.get_rating(new_agent)
         rB = self.get_rating(fixed_agent)
 
@@ -58,18 +60,26 @@ class Arena:
         original_count = games
         
         def play_game_pair(wins, games):
-            state = Game(base).state
+            game = Game(base)
+            state = game.state
 
             outcome1 = self.play_game(state, new_agent, fixed_agent)
             outcome2 = self.play_game(state, fixed_agent, new_agent)
+
+            del game
+            del state
 
             wins += outcome1 + 1 - outcome2
             games += 2
 
             return wins, games
     
-        for _ in range(game_pairs):
+        for i in range(game_pairs):
             wins, games = play_game_pair(wins, games)
+
+            j = 10*(i+1)//game_pairs
+            if ceil(game_pairs*j/10) == i+1:
+                print(f"{j/10:.0%}")
         
         while dynamic and (wins == games or wins == games//2) and games - original_count < 2*game_pairs:
             wins, games = play_game_pair(wins, games)
@@ -78,11 +88,12 @@ class Arena:
             games += 1
 
         win_rate = wins/games
+        new_elo = rB - 400*math.log(1/win_rate - 1)/math.log(10)
 
-        print(f"Won {wins} of {games}.")
-        print(f"New elo: {rB}.")
+        print(f"Won {wins} of {games}")
+        print(f"New elo: {new_elo} (rB = {rB})")
 
-        self.ratings[new_agent.elo_id] = rB - 400*math.log(1/win_rate - 1)/math.log(10)
+        self.ratings[new_agent.elo_id] = new_elo
         self.history[new_agent.elo_id] = (fixed_agent.elo_id, games)
         
         writer = csv.writer(open(self.elo_rating_path, 'w', newline=''))
@@ -107,13 +118,13 @@ class Arena:
         while not game.over():
             game.make_move(p.select_move())
             p = p1 if p == p2 else p2
-            all_objects = muppy.get_objects()
-            sum1 = summary.summarize(all_objects)# Prints out a summary of the large objects
-            summary.print_(sum1)
-
-        gc.collect()
         
-        return (1 + game.state.outcome)//2
+        outcome = game.state.outcome
+
+        del game
+        del state
+        
+        return (1 + outcome)//2
 
 from pympler import muppy, summary
 import time

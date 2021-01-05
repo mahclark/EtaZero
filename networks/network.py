@@ -1,11 +1,13 @@
+import datetime
 import torch
-import uuid
 
 class Network:
 
     def __init__(self):
         super().__init__()
-        self.refresh_id()
+        self.iteration = -1
+        self.iterate_id()
     
-    def refresh_id(self):
-        self.elo_id = type(self).__name__ + str(uuid.uuid4())
+    def iterate_id(self):
+        self.iteration += 1
+        self.elo_id = f'{type(self).__name__}-{self.iteration}-{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'

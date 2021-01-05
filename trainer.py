@@ -27,8 +27,13 @@ def takable_label_fn(g, state):
 class Trainer:
 
     def __init__(self, model=None, load_path=None, base_path=""):
+        self.base_path = base_path
+
         if load_path:
             model = torch.load(base_path + load_path)
+            self.loaded = True
+        else:
+            self.loaded = False
 
         if not model:
             model = DGLValueWinNetwork(
@@ -87,31 +92,45 @@ class Trainer:
                 # all_objects = muppy.get_objects()
                 # sum1 = summary.summarize(all_objects)
                 # summary.print_(sum1)
-        
-        with open(os.path.join(self.training_data_path, f"{eta_zero_id}.csv"),"w",newline="") as training_data:
+                
+        data_path = os.path.join(self.training_data_path, f"{eta_zero_id}.csv")
+        with open(data_path,"w",newline="") as training_data:
             for x, y in zip(state_data, labels):
                 writer = csv.writer(training_data)
                 writer.writerow([
                     x,          # x is game state string
                     *y.tolist() # y is pytorch tensor
                 ])
+
+        print(f"Data saved at:\n{data_path}")
         
         return data, labels
     
+    def _data_loader(self, data_file):
+        with open(os.path.join(self.training_data_path, data_file)) as training_data:
+            reader = csv.reader(training_data)
+            
+            data = []
+            labels = []
+
+            for row in reader:
+                x = row[0]
+                y = row[1:]
+
+                data.append(State.from_str(x).to_dgl_graph())
+                labels.append(torch.tensor(list(map(float, y))))
+        
+            return data, labels
+    
     def train(
         self,
+        all_data,
         loss_fn=nn.MSELoss(reduction='sum'),
-        n_epochs=20,
+        n_epochs=10,
         lr=0.001, # learning rate
         l2norm=10e-4, # L2 norm coefficient
         batch_size=32,
-        data_fn=None,
         history_path="history.csv"):
-
-        if data_fn == None:
-            data_fn = self._default_data_generator
-
-        all_data = data_fn()
 
         if len(all_data) == 2:
             X_train, y_train = all_data
@@ -121,13 +140,13 @@ class Trainer:
             X_train, y_train, X_val, y_val = all_data
 
         else:
-            raise Exception("Data function produced unexpected number of data series ({}).".format(len(all_data))) 
+            raise Exception("all_data provides unexpected number of data series ({}).".format(len(all_data))) 
 
         optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, weight_decay=l2norm)
 
         history = []
 
-        print("start training...")
+        print(f"training with {n_epochs} epochs...")
         for epoch in range(n_epochs):
             epoch_loss = 0
             self.model.train()
@@ -167,42 +186,49 @@ class Trainer:
         
         if history_path != None:
             history_file = open(os.path.join(self.training_data_path, history_path), "a", newline="")
-            writer = csv.DictWriter(history_file, fieldnames=["Epoch","MSELoss","ValAcc"])
+            writer = csv.DictWriter(history_file, fieldnames=["EloId", "Epoch","MSELoss","ValAcc"])
             for epoch, loss, acc in history:
-                writer.writerow({"Epoch":epoch, "MSELoss":loss, "ValAcc":acc})
+                writer.writerow({"EloId":self.model.elo_id, "Epoch":epoch, "MSELoss":loss, "ValAcc":acc})
             history_file.close()
         
         path = self.get_save_path()
         self.save_model(path)
-        print(f"Model saved:\n\tmodel: \t{self.model.id}\n\tpath:  \t{path}")
+        print(f"Model saved:\n\tmodel: \t{self.model.elo_id}\n\tpath:  \t{path}")
     
-    def eta_training_loop(self, loops, base_agent=None):
-        prev_agent = UCTAgent(1000) if not base_agent else base_agent
+    def eta_training_loop(self, loops, base_agent=None, from_train_file=None):
+        # prev_agent = EtaZero(DGLValueWinNetwork(), training=False, samples_per_move=20) if not base_agent else base_agent
 
         for i in range(loops):
-            self.model.refresh_id()
+            print(f"\n==================== Training iteration {self.model.iteration} ({i} of {loops}) ====================")
 
-            print(f"\n==================== Training iteration {i} ====================")
-            self.train()
+            if from_train_file == None:
+                all_data = self._default_data_generator()
+            else:
+                all_data = self._data_loader(from_train_file)
+                from_train_file = None
+            
+            self.model.iterate_id()
 
-            print(f"\nArena vs {prev_agent.elo_id}:")
-            arena = Arena()
-            arena.battle(
-                EtaZero(self.model, training=False, samples_per_move=20),
-                prev_agent
-            )
+            self.train(all_data)
 
-            del prev_agent
-            prev_agent = EtaZero(self.model, training=False, samples_per_move=20)
+            # print(f"\nArena vs {prev_agent.elo_id}:")
+            # arena = Arena(self.base_path)
+            # arena.battle(
+            #     EtaZero(self.model, training=False, samples_per_move=20),
+            #     prev_agent
+            # )
+
+            # del prev_agent
+            # prev_agent = EtaZero(self.model, training=False, samples_per_move=20)
     
     def save_model(self, path):
         torch.save(self.model, path)
-
-    @staticmethod
-    def get_save_path():
+    
+    def get_save_path(self):
         return os.path.join(
+            self.base_path,
             "models",
-            datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S") + ".pt"
+            self.model.elo_id + ".pt"
         )
     
     @staticmethod
