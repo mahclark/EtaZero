@@ -53,6 +53,9 @@ class UCTAgent(Agent):
             )
             if result:
                 playouts.append(result)
+        
+        if len(playouts) == 0:
+            return 0
                 
         return sum(playouts)/len(playouts)
     

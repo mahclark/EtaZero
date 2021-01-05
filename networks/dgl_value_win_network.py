@@ -72,7 +72,7 @@ class RGCNLayer(nn.Module):
         g.update_all(message_func, fn.max(msg='msg', out='agg'), apply_func)
 
 class DGLValueWinNetwork(ValueWinNetwork, nn.Module):
-    def __init__(self, dims=[3,10,10,2], num_rels=5, on_cuda=False):
+    def __init__(self, dims=[3,64,64,32,32,16,8,2], num_rels=5, on_cuda=False):
         super().__init__()
         self.dims = dims
         self.num_rels = num_rels
