@@ -29,35 +29,23 @@ class Arena:
             self.ratings = {}
             self.history = {}
             for row in reader:
-                elo_id, rating, vs_id, n_games = row
-                vs_id = None if vs_id == "null" else vs_id
-
+                elo_id, rating = row[:2]
                 self.ratings[elo_id] = float(rating)
-                if vs_id:
-                    self.history[elo_id] = (vs_id, int(n_games))
+
+                opponents = {}
+                for s in row[2:]:
+                    vs_id, wins, games = s.split("|")
+                    opponents[vs_id] = (int(wins), int(games))
+                self.history[elo_id] = opponents
         
-    def battle(self, new_agent, fixed_agent, game_pairs=10, base=7, dynamic=False):
+    def battle(self, new_agent, fixed_agent, game_pairs=10, base=7):
         if new_agent.elo_id == fixed_agent.elo_id:
             raise Exception("Agents should not have the same elo_id.")
 
-        vs_id, vs_games = self.history.get(new_agent.elo_id, (None, None))
-        if vs_id and vs_id != fixed_agent.elo_id:
-            raise Exception("Battling against a second agent is not supported.")
-
         print(f"{2*game_pairs} games {new_agent.elo_id} vs {fixed_agent.elo_id} (fixed):")
-
-        rA = self.get_rating(new_agent)
-        rB = self.get_rating(fixed_agent)
 
         wins = 0
         games = 0
-
-        if vs_id:
-            win_rate = self.expected_result(rA, rB)
-            wins = win_rate*vs_games
-            games = vs_games
-        
-        original_count = games
         
         def play_game_pair(wins, games):
             game = Game(base)
@@ -79,27 +67,36 @@ class Arena:
 
             j = 10*(i+1)//game_pairs
             if ceil(game_pairs*j/10) == i+1:
-                print(f"{j/10:.0%}")
-        
-        while dynamic and (wins == games or wins == games//2) and games - original_count < 2*game_pairs:
-            wins, games = play_game_pair(wins, games)
-        
-        if wins == games:
-            games += 1
+                print(f"{j/10:.0%} - won {wins} of {games}")
 
-        win_rate = wins/games
-        new_elo = rB - 400*math.log(1/win_rate - 1)/math.log(10)
+        prev_hist = self.history.get(new_agent.elo_id, {}).get(fixed_agent.elo_id, (0,0))
+        new_wins = prev_hist[0] + wins
+        new_games = prev_hist[1] + games
+        new_games += new_wins == new_games
+
+        self.history.setdefault(new_agent.elo_id, {})[fixed_agent.elo_id] = (new_wins, new_games)
+
+        total_games = 0
+        sum_elo = 0
+        for vs_id, (n_wins, n_games) in self.history[new_agent.elo_id].items():
+            vs_elo = self.ratings[vs_id]
+            elo = vs_elo - 400*math.log(n_games/n_wins - 1)/math.log(10)
+
+            total_games += n_games
+            sum_elo += elo*n_games
+        
+        new_elo = round(sum_elo/total_games*10)/10
+        self.ratings[new_agent.elo_id] = new_elo
 
         print(f"Won {wins} of {games}")
-        print(f"New elo: {new_elo} (rB = {rB})")
-
-        self.ratings[new_agent.elo_id] = new_elo
-        self.history[new_agent.elo_id] = (fixed_agent.elo_id, games)
+        print(f"New elo: {new_elo} (history = {self.history[new_agent.elo_id]})")
         
         writer = csv.writer(open(self.elo_rating_path, 'w', newline=''))
         for elo_id, rating in self.ratings.items():
-            vs_id, n_games = self.history.get(elo_id, ("null","null"))
-            writer.writerow([elo_id, rating, vs_id, n_games])
+            hist_str = [[e] + list(map(str, h)) for e, h in self.history[elo_id].items()]
+            history_rows = list(map("|".join, hist_str))
+
+            writer.writerow([elo_id, f"{rating:.1f}", *history_rows])
     
     def get_rating(self, agent):
         return self.ratings.get(agent.elo_id, self.default_rating)
@@ -130,7 +127,7 @@ from pympler import muppy, summary
 import time
 if __name__ == "__main__":
     arena = Arena()
-    arena.battle(UCTAgent(7000), RandomAgent(), game_pairs=1, base=7)
+    arena.battle(UCTAgent(500), UCTAgent(100), game_pairs=10, base=7)
     # game = Game(7)
     # ss = game.search_game
     # print(arena.play_game(ss, UCTAgent(5000), UCTAgent(1000)))
