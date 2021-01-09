@@ -158,8 +158,8 @@ class EtaZero(Agent):
 
         z = self.game.state.outcome
 
-        if self.game_depth%2 != 0:
-            z = -z
+        # if self.game_depth%2 != 0:
+        #     z = -z
 
         state_strs = []
         state_graphs = []
@@ -168,12 +168,15 @@ class EtaZero(Agent):
             raise NotImplementedError("get_training_labels() not implemented for a policy-value network")
         else:
             node = self.move_root.parent # we don't train on a terminating node
-            while node:
+            while node and node.Q != None:
+
+                win_label = 1 if (z, node.state.next_go) in [(1, 1), (-1, 2)] else -1
+                
                 state_strs.append(str(node.state))
                 state_graphs.append(node.state.to_dgl_graph())
-                data_y.append(torch.tensor([node.Q, z]))
+                data_y.append(torch.tensor([node.Q, win_label]))
                 node = node.parent
-                z = -z
+                # z = -z
         
         return (state_strs, state_graphs, data_y)
     
@@ -189,6 +192,7 @@ class StateNode:
         self.win_pred = win_pred
         self.state = state
         self.actions = None
+        self.Q = None
     
     def expand(self, game, pi):
         self.leaf = False
@@ -259,6 +263,7 @@ class Action:
         self.W = 0
         self.Q = 0
         self.next_state = next_state
+        self.next_state.Q = self.Q
     
     def update(self, z):
         self.N += 1
@@ -286,6 +291,13 @@ class EtaZeroVisualiser:
         self.h_gap = 150
         self.font = pygame.font.SysFont("Bahnschrift", 20)
         self.clock = pygame.time.Clock()
+
+        xs, _, ys = eta_zero.generate_training_labels()
+
+        self.labels = {
+            state : (val, win)
+            for state, (val, win) in zip(xs, ys)
+        }
 
         # thread = Thread(target = self.begin)
         # thread.start()
@@ -393,6 +405,13 @@ class EtaZeroVisualiser:
         grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
         Renderer.draw_score_grid(grid_surf, self.current_node.state.score)
         self.screen.blit(grid_surf, (margin + 190, 44))
+
+        if str(self.current_node.state) in self.labels:
+            label = self.labels[str(self.current_node.state)]
+            title_lbl = self.font.render(f"val, win", 1, white)
+            label_lbl = self.font.render(f"{label[0]:.2f}, {label[1]:.2f}", 1, white)
+            self.screen.blit(title_lbl, (margin + 190 + grid_width + 40, 20))
+            self.screen.blit(label_lbl, (margin + 190 + grid_width + 40, 66))
 
         for i, (action, score) in enumerate(self.actions):
             lbl0 = self.font.render(" | ".join(map(self.format_move, action.move)), 1, white)
