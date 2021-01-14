@@ -30,7 +30,7 @@ class EtaZero(Agent):
         self.training = training
         self.progress = 0
         self.samples_per_move = samples_per_move
-        self.elo_id = self.name + "-" + self.network.elo_id
+        self.elo_id = f"{self.name}-{samples_per_move}-{self.network.elo_id}"
 
         self.network_type = None
         for network_type in self.expected_network_types:
@@ -43,8 +43,6 @@ class EtaZero(Agent):
     
     def set_game(self, game):
         super().set_game(game)
-        
-        self.game_depth = 1
         
         if self.network_type == PolicyValueNetwork:
             pi, _ = self.network.evaluate(self.game.state).detach()
@@ -80,7 +78,6 @@ class EtaZero(Agent):
         self.set_confidence((score + 1)/2)
 
         self.move_root = self.move_root.take_move(move)
-        self.game_depth += 1
 
         return move
     
@@ -156,11 +153,6 @@ class EtaZero(Agent):
     def generate_training_labels(self):
         assert self.game.over()
 
-        z = self.game.state.outcome
-
-        # if self.game_depth%2 != 0:
-        #     z = -z
-
         state_strs = []
         state_graphs = []
         data_y = []
@@ -170,13 +162,12 @@ class EtaZero(Agent):
             node = self.move_root.parent # we don't train on a terminating node
             while node and node.Q != None:
 
-                win_label = 1 if (z, node.state.next_go) in [(1, 1), (-1, 2)] else -1
+                win_label = 1 if self.game.state.outcome == node.state.next_go else -1
                 
                 state_strs.append(str(node.state))
                 state_graphs.append(node.state.to_dgl_graph())
                 data_y.append(torch.tensor([node.Q, win_label]))
                 node = node.parent
-                # z = -z
         
         return (state_strs, state_graphs, data_y)
     
@@ -228,7 +219,7 @@ class StateNode:
             vals.append(val)
             game.undo_move()
         
-        vals = (1 - torch.tensor(vals))/2 # adjust range from [-1,1] to [0,1]
+        vals = (1 + torch.tensor(vals))/2 # adjust range from [-1,1] to [0,1]
         ps = vals/torch.sum(vals) # normalise vals to sum to 1
         
         self.actions = []
