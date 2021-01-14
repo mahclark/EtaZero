@@ -9,7 +9,6 @@ from agents.uct_agent import UCTAgent
 from arena import Arena
 from math import ceil
 from networks.dgl_value_win_network import DGLValueWinNetwork
-from pympler import muppy, summary
 from sevn import Game, State
 from torch import nn
 from tqdm import tqdm
@@ -48,7 +47,7 @@ class Trainer:
             "training_data"
         )
 
-    def _default_data_generator(self, num_games=50, game_base=7):
+    def _default_data_generator(self, num_games=50, game_base=7, samples_per_move=50):
         data = []
         state_data = []
         labels = []
@@ -57,7 +56,7 @@ class Trainer:
         for i in range(num_games):
             game = Game(game_base)
 
-            eta_zero = EtaZero(self.model, training=True, samples_per_move=50)
+            eta_zero = EtaZero(self.model, training=True, samples_per_move=samples_per_move)
             eta_zero.set_game(game)
             eta_zero_id = eta_zero.elo_id
             
@@ -184,25 +183,32 @@ class Trainer:
 
             print(report)
         
-        if history_path != None:
-            history_file = open(os.path.join(self.training_data_path, history_path), "a", newline="")
-            writer = csv.DictWriter(history_file, fieldnames=["EloId", "Epoch","MSELoss","ValAcc"])
+        with open(os.path.join(self.training_data_path, history_path), "a", newline="") as history_file:
+            writer = csv.writer(history_file)
             for epoch, loss, acc in history:
-                writer.writerow({"EloId":self.model.elo_id, "Epoch":epoch, "MSELoss":loss, "ValAcc":acc})
-            history_file.close()
+                writer.writerow([
+                    self.model.elo_id,
+                    epoch,
+                    loss,
+                    acc
+                ])
         
         path = self.get_save_path()
         self.save_model(path)
         print(f"Model saved:\n\tmodel: \t{self.model.elo_id}\n\tpath:  \t{path}")
     
-    def eta_training_loop(self, loops, base_agent=None, from_train_file=None):
-        # prev_agent = EtaZero(DGLValueWinNetwork(), training=False, samples_per_move=20) if not base_agent else base_agent
+    def eta_training_loop(self, loops, base_agent=None, from_train_file=None, samples_per_move=50, game_base=7, num_games=50):
+
+        if not self.loaded:
+            path = self.get_save_path()
+            self.save_model(path)
+            print(f"Model saved:\n\tmodel: \t{self.model.elo_id}\n\tpath:  \t{path}")
 
         for i in range(loops):
             print(f"\n==================== Training iteration {self.model.iteration} ({i} of {loops}) ====================")
 
             if from_train_file == None:
-                all_data = self._default_data_generator()
+                all_data = self._default_data_generator(samples_per_move=samples_per_move, game_base=game_base, num_games=num_games)
             else:
                 all_data = self._data_loader(from_train_file)
                 from_train_file = None
@@ -211,15 +217,7 @@ class Trainer:
 
             self.train(all_data)
 
-            # print(f"\nArena vs {prev_agent.elo_id}:")
-            # arena = Arena(self.base_path)
-            # arena.battle(
-            #     EtaZero(self.model, training=False, samples_per_move=20),
-            #     prev_agent
-            # )
-
-            # del prev_agent
-            # prev_agent = EtaZero(self.model, training=False, samples_per_move=20)
+            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     
     def save_model(self, path):
         torch.save(self.model, path)
@@ -304,4 +302,4 @@ if __name__ == "__main__":
     model = DGLValueWinNetwork(dims=[3,64,64,32,32,16,8,2])
     trainer = Trainer(model=model)#, load_path="models/2020-12-18-23-06-15.pt")
     
-    trainer._default_data_generator(num_games=4, game_base=5)
+    trainer._default_data_generator(num_games=1, game_base=7, samples_per_move=5)
