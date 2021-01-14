@@ -104,6 +104,8 @@ class Game:
         """
         Returns the game state to the previous state.
         """
+        if self.state.parent == None:
+            raise Exception("Cannot undo a move when no moves have happened.")
         self.state = self.state.parent
     
     def reset_search_game(self):
@@ -479,10 +481,10 @@ class State:
     def __eq__(self, other):
         return other and \
             isinstance(other, State) and \
-                self.board == other.board and \
-                    self.score == other.score and \
-                        self.next_go == other.next_go and \
-                            self.outcome == other.outcome
+            self.next_go == other.next_go and \
+            self.outcome == other.outcome and \
+            self.score == other.score and \
+            self.board == other.board
     
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -501,6 +503,16 @@ class State:
             prev += "/"
 
         return prev + str(self.move)
+    
+    def free(self, except_child=None):
+        """
+        Frees memory by recursively deleting child states, except for except_child.
+        """
+        for move in self.board.get_moves():
+            if move.next_state and move.next_state != except_child:
+                move.next_state.free()
+                del move.next_state
+                move.next_state = None
 
     @staticmethod
     def from_str(s):
@@ -680,19 +692,27 @@ class State:
 from agents.random_agent import RandomAgent
 if __name__ == "__main__":
 
-    st = get_time()
+    # st = get_time()
 
-    times = []
-    for i in range(1000):
-        game = Game.from_str("1/aaaaaaa/fdcfaaa.fafgbde.eedggec.accbbfb.fegdfba.gdeccbc.ddabegg")
-        agent = RandomAgent(game)
-        while not game.over():
-            t = get_time()
-            game.make_move(agent.select_move())
-            times.append(get_time() - t)
+    # times = []
+    # for i in range(1000):
+    #     game = Game.from_str("1/aaaaaaa/fdcfaaa.fafgbde.eedggec.accbbfb.fegdfba.gdeccbc.ddabegg")
+    #     agent = RandomAgent(game)
+    #     while not game.over():
+    #         t = get_time()
+    #         game.make_move(agent.select_move())
+    #         times.append(get_time() - t)
     
-    print(pprint("total:", diff_str(st)))
+    # print(pprint("total:", diff_str(st)))
     
-    print(len(times))
-    print(sum(times))
-    print(1000*sum(times)/len(times))
+    # print(len(times))
+    # print(sum(times))
+    # print(1000*sum(times)/len(times))
+
+    
+    model = torch.load("models\\DGLValueWinNetwork-11-2021-01-08-19-34-00.pt")
+    print("Eval:", model.evaluate(Game.from_str("1/aaa/abc.3.3").state))
+    print("Eval:", model.evaluate(Game.from_str("2/baa/1bc.3.3").state))
+    print("Eval:", model.evaluate(Game.from_str("1/b-ba/2c.3.3").state))
+
+    

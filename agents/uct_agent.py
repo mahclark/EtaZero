@@ -23,9 +23,9 @@ class UCTAgent(Agent):
         self.turn_evals = 0
 
     def select_move(self):
-        # tiles = sum([self.game.state.board.board[y][x] > -1 for y in range(self.game.base) for x in range(self.game.base)])
+        if self.game.state.parent != None:
+            self.clean(self.game.state.parent, except_state=self.game.state)
 
-        # self.playouts_per_move = int((400 + 0.01*(49 - tiles)**3.6)/len(self.game.get_moves()))
         self.evals_per_move = self.max_evals_per_turn//len(self.game.get_moves())
         self.turn_evals = 0
         
@@ -35,7 +35,29 @@ class UCTAgent(Agent):
         
         self.set_confidence((score*self.game.state.next_go + 1)/2)
 
+        self.game.make_move(best_move)
+        next_state = self.game.state
+        self.game.undo_move()
+
+        self.clean(self.game.state, except_state=next_state)
+        self.game.state.free(except_child=next_state)
+
         return best_move
+    
+    def clean(self, state, except_state=None):
+        """
+        Function to clean entries from visits and wins which are no longer needed.
+        """
+        if state == None or state == except_state:
+            return
+
+        self.visits.pop(state, None) # Remove if exists
+        self.wins.pop(state, None)
+
+        for move in state.board.get_moves():
+            if move.next_state != except_state:
+                if move.next_state in self.visits or move.next_state in self.wins:
+                        self.clean(move.next_state)
 
     def _get_value(self):
         playouts = []
