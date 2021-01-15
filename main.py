@@ -5,15 +5,17 @@ import pygame
 import time
 import sys
 import traceback
-from sevn import Board, Game, Score, State
-from agents.random_agent import RandomAgent
+from agents.eta_zero import EtaZero, EtaZeroVisualiser
 from agents.human import Human
 from agents.mcts_agent import MinimaxMCTS
+from agents.network_agent import RawNetwork
+from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
-from agents.eta_zero import EtaZero, EtaZeroVisualiser
+from ios_screen_capture import screen_parser
 from networks.dgl_value_win_network import DGLValueWinNetwork
 from networks.dummy_networks import DummyPVNetwork
 from renderer import Renderer
+from sevn import Board, Game, Score, State
 
 # from screen_parsing import simple_plotter
 
@@ -76,46 +78,48 @@ class Animations:
     def done(self):
         return len(self.tiles) == 0
 
-# default_colors = simple_plotter.get_colors()
-default_colors = {
-    0: (237, 184, 121),
-    1: (224, 127, 133),
-    2: (128, 90, 91),
-    3: (127, 55, 115),
-    4: (240, 222, 196),
-    5: (63, 61, 55),
-    6: (136, 159, 175)
-}
+tile_colors = Renderer.default_colors
+default_back_col = (95, 46, 95), (226, 171, 152)
+top_col, bot_col = default_back_col
 
 """
 This file instantiates two agents and plays them against each other.
 It is responsible for rendering the game visuals and asking agents for their moves.
 """
-
 if __name__ == "__main__":
-    base = 3
+    base = 7
     
-    ### Random game state
-    game = Game(base)#.from_str("1/aaaaa/eecea.ddbbd.bbecd.abaac.cdeac")
+    """ Random game state
+    game = Game(base)#.from_str("1/c-d-d-b-d-df/7.7.7.2a4.7.7.7")
+    """
     
-    ### Game state from a board
-    # game = Game(
-    #     base,
-    #     State(
-    #         Board(base, simple_plotter.get_board()),
-    #         Score(base),
-    #         1
-    #     )
-    # )
+    """ Game state from a board
+    game = Game(
+        base,
+        State(
+            Board(base, simple_plotter.get_board()),
+            Score(base),
+            1
+        )
+    ) """
 
-    ### Game state from string representation
-    # game = Game.from_str("1/aaa/acb.bca.cba")
+    """ Game state from string representation
+    game = Game.from_str("1/aaa/acb.bca.cba")
+    """
+
+    """ Game state from iOS App Sevn
+    state, default_colors = screen_parser.get_starting_state()
+    game = Game(state=state)
+    """
+
+    # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
+    game = Game(base)#state=state)
 
     user_input = UserInput()
 
     game.reset_search_game()
-    player2 = Human(user_input)#EtaZero(game.search_game, torch.load("models\\2020-11-27-11-29-40.pt"), samples_per_move=200)#, DummyPVNetwork())
-    player1 = UCTAgent()#game.search_game)#,user_input)
+    player2 = RawNetwork(torch.load("models\\DGLValueWinNetwork-11-2021-01-08-19-34-00.pt"))
+    player1 = Human(user_input)#UCTAgent(max_evals_per_turn=6000)
 
     player1.set_game(game.search_game)
     player2.set_game(game.search_game)
@@ -236,6 +240,19 @@ if __name__ == "__main__":
         def screen_to_board(x, y):
             return (x - int((x_size - board_size)/2), y - margin_size*2 - score_height)
 
+        background = pygame.Surface((x_size, y_size))
+        for y in range(y_size):
+            col_a, col_b = default_back_col if y + margin_size/2 - 3 < board_to_screen(0,0)[1] else (top_col, bot_col)
+            lerp_col = [a + (b-a)*y/y_size for a, b in zip(col_a, col_b)]
+            pygame.draw.line(
+                background,
+                lerp_col,
+                (0, y),
+                (x_size-1, y)
+            )
+        
+        screen.blit(background, (0,0))
+
         if animations.done() and game.state.outcome != 0: # if someone has won
             
             winner = player1 if game.state.outcome == 1 else player2
@@ -247,7 +264,7 @@ if __name__ == "__main__":
             screen.blit(win_label, win_label_rect)
         else: # else draw the board
             animations.step()
-            Renderer.draw_board(board_surf, game.state.board, user_input.selected, animations.tiles)
+            Renderer.draw_board(board_surf, game.state.board, user_input.selected, animations.tiles, colors=tile_colors)
        
         # Draw the player name labels
         unselected_col = (196, 187, 173)
@@ -284,7 +301,7 @@ if __name__ == "__main__":
 
         # Draw the score grid
         grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
-        Renderer.draw_score_grid(grid_surf, game.state.score)
+        Renderer.draw_score_grid(grid_surf, game.state.score, colors=tile_colors)
         score_surf.blit(grid_surf, (int((score_width - grid_width)/2), score_height - grid_height))
 
         # Draw the score numbers
