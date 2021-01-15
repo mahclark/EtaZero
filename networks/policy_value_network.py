@@ -1,7 +1,8 @@
 from networks.network import Network
 
+
 class PolicyValueNetwork(Network):
-    
+
     def evaluate(self, state):
         """
         Given a game state, returns:

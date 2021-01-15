@@ -1,3 +1,4 @@
+from agents.random_agent import RandomAgent
 import dgl
 import numpy as np
 import time
@@ -8,24 +9,29 @@ from torch import tensor
 from tqdm import tqdm
 from typing import NamedTuple
 
+
 class Pos(NamedTuple):
     row: int
     col: int
-    
+
     def left(self):
         return Pos(self.row-1, self.col)
+
     def right(self):
         return Pos(self.row+1, self.col)
+
     def up(self):
         return Pos(self.row, self.col-1)
+
     def down(self):
         return Pos(self.row, self.col+1)
-    
+
     def __str__(self):
         return "{0},{1}".format(self.row, self.col)
-    
+
     def __repr__(self):
         return self.__str__()
+
 
 class Game:
     """
@@ -42,38 +48,38 @@ class Game:
             self.state = State(
                 board=Board(base),
                 score=Score(base),
-                next_go=1 # Player 1 or -1 to play?
+                next_go=1  # Player 1 or -1 to play?
             )
         else:
             self.base = state.score.base
             self.state = state
-        
-        self.search_game = None # Game object used by agents to search the state tree
+
+        self.search_game = None  # Game object used by agents to search the state tree
 
     def get_moves(self):
         """
         Returns all possible next moves for a game state.
         """
         return self.state.board.get_moves()
-    
+
     def get_takable(self):
         """
         Returns a set of (row, column) positions of tiles which are corner tiles i.e. can be taken next move.
         """
         return self.state.board.get_takable()
-    
+
     def get_at(self, a, b=None):
         """
         Returns the value of a tile at the position specified or -1 if no tile exists there.
         """
         return self.state.board.get_at(a, b)
-    
+
     def get_score(self, i):
         """
         Returns the current score of a colour.
         """
         return self.state.score.get_score(i)
-    
+
     def over(self):
         return self.state.outcome != 0
 
@@ -89,7 +95,7 @@ class Game:
         color = self.get_at(next(iter(move)))
         board = self.state.board.make_move(move)
         score = self.state.score.make_move(move, color, self.state.next_go)
-        
+
         self.state = State(
             board=board,
             score=score,
@@ -99,7 +105,7 @@ class Game:
         )
 
         move.next_state = self.state
-    
+
     def undo_move(self):
         """
         Returns the game state to the previous state.
@@ -107,7 +113,7 @@ class Game:
         if self.state.parent == None:
             raise Exception("Cannot undo a move when no moves have happened.")
         self.state = self.state.parent
-    
+
     def reset_search_game(self):
         """
         Ensures the state of self.search_game is the same as the current state.
@@ -115,7 +121,7 @@ class Game:
         if not self.search_game:
             self.search_game = Game(self.base, self.state)
         self.search_game.state = self.state
-    
+
     @staticmethod
     def from_str(s):
         """
@@ -129,6 +135,7 @@ class Game:
             state
         )
 
+
 class Move:
 
     def __init__(self, move_set):
@@ -137,27 +144,29 @@ class Move:
 
     def __getitem__(self, index):
         return self.tiles[index]
-    
+
     def __len__(self):
         return len(self.tiles)
 
     def __hash__(self):
         return self.tiles.__hash__()
-    
+
     def __eq__(self, other):
         return other and self.tiles == other.tiles
-    
+
     def __str__(self):
         strs = ["{},{}".format(tile.row, tile.col) for tile in self.tiles]
         return ";".join(strs)
-    
+
     def __repr__(self):
         return self.__str__()
+
 
 class Board:
     """
     Immutable representation of the game board and all the tiles.
     """
+
     def __init__(self, base, board=None):
         self.base = base
 
@@ -166,16 +175,16 @@ class Board:
             tiles = [i % base for i in range(base**2)]
             shuffle(tiles)
             board = [[tiles.pop() for _ in range(base)] for _ in range(base)]
-        
+
         self.board = tuple([tuple(row) for row in board])
-        
+
         # Empty if all cells have value -1
         self.empty = all(
             board[row][col] == -1
             for row in range(base)
             for col in range(base)
         )
-        
+
         # List of all corner tiles
         self.takable = [
             Pos(row, col)
@@ -204,7 +213,7 @@ class Board:
         ]
 
         self.hash_val = hash(self.board)
-    
+
     @staticmethod
     def _all_combs(a):
         """
@@ -217,53 +226,54 @@ class Board:
                 for i in range(len(a))
                 if (b >> i) & 1 == 1
             }))
-        
+
         return combs
-    
+
     def get_at(self, a, b=None):
         if b == None:
             row, col = a
         else:
             row, col = (a, b)
-        
+
         if row < 0 or col < 0 or row >= self.base or col >= self.base:
             return -1
         return self.board[row][col]
-    
+
     def make_move(self, move):
         if (len(move) == 0):
             raise Exception("Invalid move: must select a tile.")
         color = self.get_at(next(iter(move)))
         for tile in move:
             if self.get_at(tile) == -1:
-                raise Exception("Invalid move: tile at {} already taken.".format(tile))
+                raise Exception(
+                    "Invalid move: tile at {} already taken.".format(tile))
             if self.get_at(tile) != color:
                 raise Exception("Invalid move: cannot take multiple colors.")
-        
+
         return Board(
             self.base,
             [
                 [-1
-                if (row, col) in move
-                else self.get_at(row, col)
-                for col in range(self.base)]
+                 if (row, col) in move
+                 else self.get_at(row, col)
+                 for col in range(self.base)]
                 for row in range(self.base)
             ]
         )
-    
+
     def is_empty(self):
         return self.empty
-    
+
     def get_takable(self):
         return self.takable
 
     def get_moves(self):
         return self.moves
-    
+
     @staticmethod
     def validate(board):
         base = len(board)
-        if base%2 != 1 or base < 3 or base > 25:
+        if base % 2 != 1 or base < 3 or base > 25:
             raise Exception("Base number must be odd and between 2 and 26.")
 
         if sum([len(row) != base for row in board]) > 0:
@@ -271,7 +281,7 @@ class Board:
 
         if sum([board[row][col] < -1 or board[row][col] >= base for row in range(base) for col in range(base)]) > 0:
             raise Exception("Tiles must be >= -1 and <= base number.")
-    
+
     @staticmethod
     def from_str(s):
         lines = s.split(".")
@@ -287,11 +297,11 @@ class Board:
                 else:
                     row.append(ord(c) - ord('a'))
             board.append(row)
-        
+
         Board.validate(board)
-        
+
         return Board(base, board)
-    
+
     def __str__(self):
         rows = []
         for row in self.board:
@@ -310,23 +320,25 @@ class Board:
             if blank_counter > 0:
                 r += str(blank_counter)
                 blank_counter = 0
-            
+
             rows.append(r)
         return ".".join(rows)
 
     def __hash__(self):
         return self.hash_val
-    
+
     def __eq__(self, other):
         return other and self.board == other.board
-    
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
 
 class Score:
     """
     Immutable representation of the score of the game.
     """
+
     def __init__(self, base, score=None):
         self.base = base
 
@@ -334,12 +346,13 @@ class Score:
             score = tuple([0 for _ in range(base)])
         else:
             score = tuple(score)
-        
+
         self.score = score
-        
+
         self.validate(score)
         if len(score) != base:
-            raise Exception("The score must have the same number of items as the base number.\nBase: {0}\nItems: {1}".format(base, len(score)))
+            raise Exception(
+                "The score must have the same number of items as the base number.\nBase: {0}\nItems: {1}".format(base, len(score)))
 
         # 1 if player1 has captured all of a colour, -1 if player2, else 0
         self.player_with_all = sum([int(x/self.base) for x in self.score])
@@ -351,7 +364,7 @@ class Score:
         )
 
         self.hash_val = hash(self.score)
-        
+
     def make_move(self, move, color, next_go):
         diff = next_go*len(move)
 
@@ -364,25 +377,25 @@ class Score:
                 for i in range(self.base)
             ]
         )
-    
+
     def get_player_with_all(self):
         return self.player_with_all
-    
+
     def get_score(self, i):
         return self.score[i]
-    
+
     def get_score_pair(self):
         return self.score_pair
-    
+
     @staticmethod
     def validate(score):
         base = len(score)
-        if base%2 != 1 or base < 3 or base > 25:
+        if base % 2 != 1 or base < 3 or base > 25:
             raise Exception("Base number must be odd and between 2 and 26.")
 
         if sum([abs(x) > base for x in score]) > 0:
             raise Exception("Score cannot have values > base number.")
-        
+
         if sum([abs(x) == base for x in score]) > 1:
             raise Exception("At most one score value can be the base number.")
 
@@ -396,17 +409,18 @@ class Score:
                 if not neg:
                     neg = True
                 else:
-                    raise Exception("Invalid string: found double '-' in score.")
+                    raise Exception(
+                        "Invalid string: found double '-' in score.")
             elif not neg:
                 score.append(ord(c) - ord('a'))
             else:
                 score.append(ord('a') - ord(c))
                 neg = False
-        
+
         Score.validate(score)
-        
+
         return Score(len(score), score)
-    
+
     def __str__(self):
         s = ""
         for x in self.score:
@@ -416,12 +430,13 @@ class Score:
 
     def __hash__(self):
         return self.hash_val
-    
+
     def __eq__(self, other):
         return other and self.score == other.score
-    
+
     def __ne__(self, other):
         return not self.__eq__(other)
+
 
 class Relation:
     HIDDEN_BY = 0
@@ -429,6 +444,7 @@ class Relation:
     DIAGONAL = 2
     TAKABLE = 3
     SAME_COLOR = 4
+
 
 class State:
     """
@@ -448,7 +464,8 @@ class State:
         elif board.empty:
             p1score, p2score = score.get_score_pair()
             if p1score == p2score:
-                raise Exception("Internal error: player scores equal when board is empty.")
+                raise Exception(
+                    "Internal error: player scores equal when board is empty.")
             if p1score > p2score:
                 self.outcome = 1
             else:
@@ -466,18 +483,18 @@ class State:
 
         # Score
         s += str(self.score) + "/"
-        
+
         # Board
         s += str(self.board)
 
         return s
-    
+
     def __repr__(self):
         return self.__str__()
 
     def __hash__(self):
         return self.hash_val
-    
+
     def __eq__(self, other):
         return other and \
             isinstance(other, State) and \
@@ -485,10 +502,10 @@ class State:
             self.outcome == other.outcome and \
             self.score == other.score and \
             self.board == other.board
-    
+
     def __ne__(self, other):
         return not self.__eq__(other)
-    
+
     def get_game_str(self):
         """
         Returns string representing the game so far, ending at this state.
@@ -503,7 +520,7 @@ class State:
             prev += "/"
 
         return prev + str(self.move)
-    
+
     def free(self, except_child=None):
         """
         Frees memory by recursively deleting child states, except for except_child.
@@ -532,7 +549,8 @@ class State:
             raise Exception("Must have 3 parts separated by '/'.")
 
         if parts[0] not in ["1", "2"]:
-            raise Exception("Expected first part to be 1 or 2; got {}.".format(parts[0]))
+            raise Exception(
+                "Expected first part to be 1 or 2; got {}.".format(parts[0]))
 
         next_go = 3 - 2*int(parts[0])
         score = Score.from_str(parts[1])
@@ -552,20 +570,20 @@ class State:
             self.board.base + self.score.get_score(tile)*self.next_go,
             (score_pair[0] - score_pair[1])*self.next_go
         ]
-    
+
     def to_dgl_graph(self):
         if self.dgl_graph != None:
             return self.dgl_graph
 
         size_bound = self.board.base**3 + 16*self.board.base**2
-       
+
         class Edges:
             def __init__(self):
                 self.etypes = [0]*size_bound
                 self.src = [0]*size_bound
                 self.dst = [0]*size_bound
                 self.size = 0
-            
+
             def add_edge(self, u, v, rel_id, both_ways=False):
                 if self.size == size_bound:
                     print(size_bound)
@@ -583,13 +601,13 @@ class State:
 
             def get_etypes(self):
                 return self.etypes[:self.size]
-            
+
             def get_src_dst(self):
                 return (
                     self.src[:self.size],
                     self.dst[:self.size]
                 )
-            
+
             # def gpu_tensors(self):
             #     # t = get_time()
             #     src_tensor.copy_(src_cpu)
@@ -600,7 +618,7 @@ class State:
             #         src_tensor[:self.size],
             #         dst_tensor[:self.size]
             #     )
-            
+
             # def cpu_tensors(self):
             #     return (
             #         src_cpu[:self.size],
@@ -611,8 +629,8 @@ class State:
 
         features = []
 
-        index_map = {} # from board pos to node index
-        pos_order = [] # all tile positions in order of node index
+        index_map = {}  # from board pos to node index
+        pos_order = []  # all tile positions in order of node index
 
         takable_set = set()
         color_sets = {}
@@ -639,10 +657,12 @@ class State:
         # Add all positional relations
         for pos, index in index_map.items():
             if pos not in self.board.get_takable():
-                
-                blocked_h = self.board.get_at(pos.left()) > -1 and self.board.get_at(pos.right()) > -1
-                blocked_v = self.board.get_at(pos.up()) > -1 and self.board.get_at(pos.down()) > -1
-                
+
+                blocked_h = self.board.get_at(
+                    pos.left()) > -1 and self.board.get_at(pos.right()) > -1
+                blocked_v = self.board.get_at(
+                    pos.up()) > -1 and self.board.get_at(pos.down()) > -1
+
                 assert blocked_h or blocked_v
 
                 if blocked_h:
@@ -653,7 +673,7 @@ class State:
                     edges.add_edge(index, right, Relation.HIDDEN_BY)
                     edges.add_edge(left, index, Relation.REVEALS)
                     edges.add_edge(right, index, Relation.REVEALS)
-                
+
                 if blocked_v:
                     up = index_map[pos.up()]
                     down = index_map[pos.down()]
@@ -662,12 +682,15 @@ class State:
                     edges.add_edge(index, down, Relation.HIDDEN_BY)
                     edges.add_edge(up, index, Relation.REVEALS)
                     edges.add_edge(down, index, Relation.REVEALS)
-                
+
                 if blocked_h and blocked_v:
                     edges.add_edge(left, up, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(up, right, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(right, down, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(down, left, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(
+                        up, right, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(
+                        right, down, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(
+                        down, left, Relation.DIAGONAL, both_ways=True)
 
         # Densely connect all same color nodes and all takable nodes.
         for relation_set, rel_id in [(takable_set, Relation.TAKABLE)] + [(color_set, Relation.SAME_COLOR) for color_set in color_sets.values()]:
@@ -678,7 +701,7 @@ class State:
 
         graph = dgl.graph(edges.get_src_dst())
 
-        if graph.num_nodes() == 0: # case that no edges are added
+        if graph.num_nodes() == 0:  # case that no edges are added
             graph.add_nodes(len(features))
 
         graph.edata.update({"rel_type": tensor(edges.get_etypes())})
@@ -689,7 +712,7 @@ class State:
 
         return graph
 
-from agents.random_agent import RandomAgent
+
 if __name__ == "__main__":
 
     # st = get_time()
@@ -702,17 +725,14 @@ if __name__ == "__main__":
     #         t = get_time()
     #         game.make_move(agent.select_move())
     #         times.append(get_time() - t)
-    
+
     # print(pprint("total:", diff_str(st)))
-    
+
     # print(len(times))
     # print(sum(times))
     # print(1000*sum(times)/len(times))
 
-    
     model = torch.load("models\\DGLValueWinNetwork-11-2021-01-08-19-34-00.pt")
     print("Eval:", model.evaluate(Game.from_str("1/aaa/abc.3.3").state))
     print("Eval:", model.evaluate(Game.from_str("2/baa/1bc.3.3").state))
     print("Eval:", model.evaluate(Game.from_str("1/b-ba/2c.3.3").state))
-
-    

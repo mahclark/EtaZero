@@ -1,6 +1,7 @@
 from agents.agent import Agent
 from random import choice
 
+
 class RandomAgent(Agent):
     name = "Random Agent"
 

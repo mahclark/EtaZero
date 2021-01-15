@@ -12,7 +12,7 @@ class Agent:
         self.elo_id = self.name
         if num != None:
             self.name += " " + str(num)
-        
+
     def set_game(self, game):
         self.game = game
 
@@ -21,6 +21,6 @@ class Agent:
 
     def set_confidence(self, x):
         self.confidence = f"{100*x:.1f}%"
-    
+
     def get_progress(self):
         return None

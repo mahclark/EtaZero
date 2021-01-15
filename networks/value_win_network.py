@@ -1,7 +1,8 @@
 from networks.network import Network
 
+
 class ValueWinNetwork(Network):
-    
+
     def evaluate(self, state):
         """
         Given a game state, returns a tuple/tensor with:
