@@ -25,4 +25,3 @@ NN hyperparameters:
     - epochs = 20
     - optimizer = Adam
     - learning rate = 0.001
-
