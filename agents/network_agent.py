@@ -15,14 +15,17 @@ class RawNetwork(Agent):
         best_score = -float("inf")
         for move in self.game.get_moves():
             self.game.make_move(move)
-            score, _ = self.network.evaluate(self.game.state)
+
+            if self.game.over():# and self.game.state.board.is_empty():
+                score = -self.game.state.outcome * self.game.state.next_go
+            else:
+                score, win = self.network.evaluate(self.game.state)
+
             self.game.undo_move()
 
             if score > best_score:
                 best = move
                 best_score = score
-
-            print(f"{move}: {(score + 1)/2:.1%}")
 
         self.set_confidence((best_score + 1)/2)
 

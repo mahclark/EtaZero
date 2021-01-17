@@ -163,7 +163,10 @@ class EtaZero(Agent):
             raise NotImplementedError(
                 "get_training_labels() not implemented for a policy-value network")
         else:
-            node = self.move_root.parent  # we don't train on a terminating node
+            node = self.move_root
+            if node.state.outcome != 0:
+                node = self.move_root.parent  # we don't train on a terminating node
+
             while node and node.Q != None:
 
                 win_label = 1 if self.game.state.outcome == node.state.next_go else -1
