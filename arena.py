@@ -62,9 +62,9 @@ class Arena:
 
             outcome2 = self.play_game(state, fixed_agent, new_agent)
             if outcome2 == 1:
-                print(" +", end="")
-            else:
                 print(" -", end="")
+            else:
+                print(" +", end="")
 
             del game
             del state
