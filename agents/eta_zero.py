@@ -221,9 +221,10 @@ class StateNode:
             game.make_move(move)
             if game.over():
                 result = game.state.outcome*game.state.next_go
-                val, win = result, result
+                val, win = -result, result
             else:
                 val, win = network.evaluate(game.state).detach()
+
             action_data.append(
                 (move, StateNode(game.state, self, win_pred=win)))
             vals.append(val)
