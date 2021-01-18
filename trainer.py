@@ -56,6 +56,7 @@ class Trainer:
         labels = []
 
         print("generating data from {} games...".format(num_games))
+        print(" 0%", end="")
         for i in range(num_games):
             game = Game(game_base)
 
@@ -86,14 +87,14 @@ class Trainer:
                     game_str
                 ])
 
+            print(" .", end='')
+
             # print progress
             j = 10*(i+1)//num_games
             if ceil(num_games*j/10) == i+1:
-                print(f"{j/10:.0%}")
+                print(f"\n{j/10:.0%}", end="")
 
-                # all_objects = muppy.get_objects()
-                # sum1 = summary.summarize(all_objects)
-                # summary.print_(sum1)
+        print()
 
         data_path = os.path.join(self.training_data_path, f"{eta_zero_id}.csv")
         with open(data_path, "w", newline="") as training_data:
@@ -185,19 +186,17 @@ class Trainer:
                     correct += self.model.forward(x)[0]*y[0] > 0
                 report += "Val Acc: {:.3f}".format(correct/len(X_val))
 
-                history.append((epoch, "{:.4f}".format(
-                    epoch_loss), "{:.3f}".format(correct/len(X_val))))
+            history.append((epoch, round(epoch_loss*1000)/1000))
 
             print(report)
 
         with open(os.path.join(self.training_data_path, history_path), "a", newline="") as history_file:
             writer = csv.writer(history_file)
-            for epoch, loss, acc in history:
+            for epoch, loss in history:
                 writer.writerow([
                     self.model.elo_id,
                     epoch,
-                    loss,
-                    acc
+                    loss
                 ])
 
         path = self.get_save_path()
@@ -314,6 +313,8 @@ if __name__ == "__main__":
     model = DGLValueWinNetwork(dims=[3, 64, 64, 32, 32, 16, 8, 2])
     # , load_path="models/2020-12-18-23-06-15.pt")
     trainer = Trainer(model=model)
+
+    trainer.eta_training_loop(1, samples_per_move=5, game_base=5, num_games=20)
 
     trainer._default_data_generator(
         num_games=1, game_base=7, samples_per_move=5)

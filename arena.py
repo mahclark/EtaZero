@@ -7,7 +7,7 @@ from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
 from math import ceil
-from sevn import Game
+from sevn import Game, State
 
 
 class Arena:
@@ -55,7 +55,16 @@ class Arena:
             state = game.state
 
             outcome1 = self.play_game(state, new_agent, fixed_agent)
+            if outcome1 == 1:
+                print(" +", end="")
+            else:
+                print(" -", end="")
+
             outcome2 = self.play_game(state, fixed_agent, new_agent)
+            if outcome2 == 1:
+                print(" +", end="")
+            else:
+                print(" -", end="")
 
             del game
             del state
@@ -65,12 +74,17 @@ class Arena:
 
             return wins, games
 
+        print(" 0%", end="")
+
         for i in range(game_pairs):
             wins, games = play_game_pair(wins, games)
 
             j = 10*(i+1)//game_pairs
             if ceil(game_pairs*j/10) == i+1:
-                print(f"{j/10:.0%} - won {wins} of {games}")
+                print(f" won {wins} of {games}")
+                print(f"{j/10:.0%}", end="")
+
+        print()
 
         prev_hist = self.history.get(new_agent.elo_id, {}).get(
             fixed_agent.elo_id, (0, 0))
