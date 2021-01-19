@@ -1,6 +1,8 @@
 import csv
 import os
 import time
+import utils
+from agents.eta_zero import EtaZero
 from agents.uct_agent import UCTAgent
 from collections import OrderedDict
 from math import ceil
@@ -76,6 +78,5 @@ class AgentTimer:
 
 if __name__ == "__main__":
     timer = AgentTimer()
-    timer.time(UCTAgent(100))
-
-    print(timer.avg_times())
+    timer.time(EtaZero(utils.load_net(4)))
+    timer.time(UCTAgent(5000))
