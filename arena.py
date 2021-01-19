@@ -90,7 +90,13 @@ class Arena:
             fixed_agent.elo_id, (0, 0))
         new_wins = prev_hist[0] + wins
         new_games = prev_hist[1] + games
-        new_games += new_wins == new_games
+
+        if new_games % 2 == 1:
+            # Only odd if we faked a loss as below (since games are in pairs)
+            new_games -= 1
+
+        if new_wins == new_games:
+            new_games += 1  # zero losses means inf elo
 
         self.history.setdefault(new_agent.elo_id, {})[
             fixed_agent.elo_id] = (new_wins, new_games)
