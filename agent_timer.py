@@ -75,8 +75,20 @@ class AgentTimer:
 
             return avg_times
 
-
+import matplotlib.pyplot as plt
 if __name__ == "__main__":
     timer = AgentTimer()
-    timer.time(EtaZero(utils.load_net(4)))
-    timer.time(UCTAgent(5000))
+    timer.time(
+        EtaZero(utils.load_net(4), samples_per_move=100),
+        num_games=2
+    )
+    timer.time(
+        UCTAgent(10000),
+        num_games=2
+    )
+
+    for time_id, times in timer.avg_times().items():
+        plt.plot(list(times.keys()), list(times.values()), label=time_id)
+
+    plt.legend(bbox_to_anchor=(1.05, 1))
+    plt.show()
