@@ -11,4 +11,4 @@ def get_model_files(path="models"):
 
 
 def load_net(i, path="models"):
-    return torch.load(get_model_files(path))
+    return torch.load(get_model_files(path)[i])
