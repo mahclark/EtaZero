@@ -13,7 +13,8 @@ class UCTAgent(Agent):
     def __init__(self, max_evals_per_turn=9999, num=None):
         super().__init__(num)
         self.max_evals_per_turn = max_evals_per_turn
-        self.elo_id = "uct-{}".format(self.max_evals_per_turn)
+        self.elo_id = f"uct-{self.max_evals_per_turn}"
+        self.time_id = self.elo_id
 
     def set_game(self, game):
         super().set_game(game)

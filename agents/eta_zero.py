@@ -32,6 +32,7 @@ class EtaZero(Agent):
         self.progress = 0
         self.samples_per_move = samples_per_move
         self.elo_id = f"{self.name}-{samples_per_move}-{self.network.elo_id}"
+        self.time_id = f"{self.name}-{samples_per_move}"
 
         self.network_type = None
         for network_type in self.expected_network_types:

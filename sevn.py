@@ -177,13 +177,7 @@ class Board:
             board = [[tiles.pop() for _ in range(base)] for _ in range(base)]
 
         self.board = tuple([tuple(row) for row in board])
-
-        # Empty if all cells have value -1
-        self.empty = all(
-            board[row][col] == -1
-            for row in range(base)
-            for col in range(base)
-        )
+        self.count = None
 
         # List of all corner tiles
         self.takable = [
@@ -262,7 +256,17 @@ class Board:
         )
 
     def is_empty(self):
-        return self.empty
+        return self.num_tiles() == 0
+    
+    def num_tiles(self):
+        if self.count is None:
+            self.count = sum(
+                self.board[row][col] > -1
+                for row in range(self.base)
+                for col in range(self.base)
+            )
+        
+        return self.count
 
     def get_takable(self):
         return self.takable
@@ -461,7 +465,7 @@ class State:
 
         if score.get_player_with_all() != 0:
             self.outcome = score.get_player_with_all()
-        elif board.empty:
+        elif board.is_empty():
             p1score, p2score = score.get_score_pair()
             if p1score == p2score:
                 raise Exception(
@@ -505,6 +509,9 @@ class State:
 
     def __ne__(self, other):
         return not self.__eq__(other)
+    
+    def num_tiles(self):
+        return self.board.num_tiles()
 
     def get_game_str(self):
         """
