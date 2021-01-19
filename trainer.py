@@ -50,14 +50,23 @@ class Trainer:
             "training_data"
         )
 
-    def _default_data_generator(self, num_games=50, game_base=7, samples_per_move=50):
+    def _default_data_generator(self, games_7=50, games_5=0, samples_per_move=50):
         data = []
         state_data = []
         labels = []
 
+        num_games = games_7 + games_5
+        remaining_7 = games_7
+
         print("generating data from {} games...".format(num_games))
         print(" 0%", end="")
         for i in range(num_games):
+            if remaining_7 > 0:
+                game_base = 7
+                remaining_7 -= 1
+            else:
+                game_base = 5
+
             game = Game(game_base)
 
             eta_zero = EtaZero(self.model, training=True,
@@ -204,7 +213,7 @@ class Trainer:
         print(
             f"Model saved:\n\tmodel: \t{self.model.elo_id}\n\tpath:  \t{path}")
 
-    def eta_training_loop(self, loops, base_agent=None, from_train_file=None, samples_per_move=50, game_base=7, num_games=50):
+    def eta_training_loop(self, loops, base_agent=None, from_train_file=None, samples_per_move=50, games_7=50, games_5=0):
 
         if not self.loaded:
             path = self.get_save_path()
@@ -218,7 +227,7 @@ class Trainer:
 
             if from_train_file == None:
                 all_data = self._default_data_generator(
-                    samples_per_move=samples_per_move, game_base=game_base, num_games=num_games)
+                    samples_per_move=samples_per_move, games_7=games_7, games_5=games_5)
             else:
                 all_data = self._data_loader(from_train_file)
                 from_train_file = None
