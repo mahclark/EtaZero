@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import csv
 import os
 import time
@@ -75,20 +76,41 @@ class AgentTimer:
 
             return avg_times
 
-import matplotlib.pyplot as plt
+    def get_info(self):
+        with open(self.timing_data_path) as timing_file:
+            reader = csv.reader(timing_file)
+
+            cur_tiles = {}
+            num_games = {}
+
+            for row in reader:
+                time_id, num_tiles, _ = row
+                num_tiles = int(num_tiles)
+
+                if cur_tiles.setdefault(time_id, 0) <= num_tiles:
+                    num_games.setdefault(time_id, 0)
+                    num_games[time_id] += 1
+
+                cur_tiles[time_id] = num_tiles
+
+            return num_games
+
+
 if __name__ == "__main__":
     timer = AgentTimer()
-    timer.time(
-        EtaZero(utils.load_net(4), samples_per_move=100),
-        num_games=2
-    )
-    timer.time(
-        UCTAgent(10000),
-        num_games=2
-    )
+    # timer.time(
+    #     EtaZero(utils.load_net(4), samples_per_move=100),
+    #     num_games=1
+    # )
+    # timer.time(
+    #     UCTAgent(10000),
+    #     num_games=1
+    # )
+
+    print(timer.get_info())
 
     for time_id, times in timer.avg_times().items():
         plt.plot(list(times.keys()), list(times.values()), label=time_id)
 
-    plt.legend(bbox_to_anchor=(1.05, 1))
+    plt.legend(bbox_to_anchor=(0.05, 1))
     plt.show()

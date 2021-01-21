@@ -16,7 +16,7 @@ class RawNetwork(Agent):
         for move in self.game.get_moves():
             self.game.make_move(move)
 
-            if self.game.over():# and self.game.state.board.is_empty():
+            if self.game.over():  # and self.game.state.board.is_empty():
                 score = -self.game.state.outcome * self.game.state.next_go
             else:
                 score, win = self.network.evaluate(self.game.state)
