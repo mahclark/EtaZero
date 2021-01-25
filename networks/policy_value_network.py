@@ -1,7 +1,7 @@
 from networks.network import Network
 
 
-class PolicyValueNetwork(Network):
+class PolicyValueNetwork:
 
     def evaluate(self, state):
         """

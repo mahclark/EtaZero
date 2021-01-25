@@ -1,7 +1,7 @@
 from networks.network import Network
 
 
-class ValueWinNetwork(Network):
+class ValueWinNetwork:
 
     def evaluate(self, state):
         """

@@ -1,8 +1,8 @@
 import datetime
-import torch
+import torch.nn as nn
 
 
-class Network:
+class Network(nn.Module):
 
     def __init__(self):
         super().__init__()
