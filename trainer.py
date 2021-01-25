@@ -9,7 +9,7 @@ from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
 from arena import Arena
 from math import ceil
-from networks.dgl_value_win_network import DGLValueWinNetwork
+from networks.graph_networks import DGLValueWinNetwork
 from sevn import Game, State
 from torch import nn
 from tqdm import tqdm

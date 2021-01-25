@@ -1,5 +1,4 @@
-from networks.policy_value_network import PolicyValueNetwork
-from networks.value_win_network import ValueWinNetwork
+from networks.network import PolicyValueNetwork, ValueWinNetwork
 import numpy as np
 
 

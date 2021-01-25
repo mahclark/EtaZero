@@ -5,10 +5,9 @@ import torch
 from agents.agent import Agent
 from collections import deque, namedtuple
 from math import sqrt
-from networks.dgl_value_win_network import DGLValueWinNetwork
+from networks.graph_networks import DGLValueWinNetwork
 from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
-from networks.policy_value_network import PolicyValueNetwork
-from networks.value_win_network import ValueWinNetwork
+from networks.network import PolicyValueNetwork, ValueWinNetwork
 from renderer import Renderer
 from sevn import Game, State
 from threading import Thread
