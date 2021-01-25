@@ -58,6 +58,11 @@ class Trainer:
         num_games = games_7 + games_5
         remaining_7 = games_7
 
+        eta_zero_id = EtaZero(self.model, training=True,
+                              samples_per_move=samples_per_move).elo_id
+        data_path = os.path.join(self.training_data_path, f"{eta_zero_id}.csv")
+        print(f"Saving data at:\n{data_path}")
+
         print("generating data from {} games...".format(num_games))
         print(" 0%", end="")
         for i in range(num_games):
@@ -72,7 +77,6 @@ class Trainer:
             eta_zero = EtaZero(self.model, training=True,
                                samples_per_move=samples_per_move)
             eta_zero.set_game(game)
-            eta_zero_id = eta_zero.elo_id
 
             while not game.over():
                 game.make_move(eta_zero.select_move())
@@ -96,6 +100,14 @@ class Trainer:
                     game_str
                 ])
 
+            with open(data_path, "a", newline="") as training_data:
+                writer = csv.writer(training_data)
+                for x, y in zip(state_strs, data_y):
+                    writer.writerow([
+                        x,              # x is game state string
+                        *y.tolist()     # y is pytorch tensor
+                    ])
+
             print(" .", end='')
 
             # print progress
@@ -104,17 +116,6 @@ class Trainer:
                 print(f"\n{j/10:.0%}", end="")
 
         print()
-
-        data_path = os.path.join(self.training_data_path, f"{eta_zero_id}.csv")
-        with open(data_path, "w", newline="") as training_data:
-            for x, y in zip(state_data, labels):
-                writer = csv.writer(training_data)
-                writer.writerow([
-                    x,          # x is game state string
-                    *y.tolist()  # y is pytorch tensor
-                ])
-
-        print(f"Data saved at:\n{data_path}")
 
         return data, labels
 
@@ -321,9 +322,9 @@ if __name__ == "__main__":
 
     model = DGLValueWinNetwork(dims=[3, 64, 64, 32, 32, 16, 8, 2])
     # , load_path="models/2020-12-18-23-06-15.pt")
-    trainer = Trainer(model=model)
+    # trainer = Trainer(model=model)
 
-    trainer.eta_training_loop(1, samples_per_move=5, game_base=5, num_games=20)
+    # trainer.eta_training_loop(1, samples_per_move=5, game_base=5, num_games=20)
 
-    trainer._default_data_generator(
-        num_games=1, game_base=7, samples_per_move=5)
+    # trainer._default_data_generator(
+    #     num_games=1, game_base=7, samples_per_move=5)
