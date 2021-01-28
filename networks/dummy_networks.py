@@ -1,13 +1,15 @@
-from networks.network import PolicyValueNetwork, ValueWinNetwork
 import numpy as np
+import random
+from networks.network import PolicyValueNetwork, ValueWinNetwork
+
 
 
 class DummyPVNetwork(PolicyValueNetwork):
     def evaluate(self, state):
-        moves = np.array(list(state.board.get_moves()))
-        probs = np.array([1/len(moves) for _ in moves])
+        moves = state.get_moves()
+        pi = np.array([1/len(moves) for _ in moves])
 
-        return ((moves, probs), 1)
+        return (pi, random.random())
 
 
 class DummyVWNetwork(ValueWinNetwork):

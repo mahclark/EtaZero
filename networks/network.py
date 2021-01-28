@@ -14,7 +14,7 @@ class Network(nn.Module):
         self.elo_id = f'{type(self).__name__}-{self.iteration}-{datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")}'
 
 
-class ValueWinNetwork:
+class ValueWinNetwork(Network):
 
     def evaluate(self, state):
         """
@@ -29,7 +29,7 @@ class ValueWinNetwork:
         raise Exception("Function evaluate() not implemented!")
 
 
-class PolicyValueNetwork:
+class PolicyValueNetwork(Network):
 
     def evaluate(self, state):
         """

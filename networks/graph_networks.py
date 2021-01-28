@@ -4,19 +4,20 @@ import torch.nn.functional as F
 import dgl
 import dgl.function as fn
 from functools import partial
-from networks.value_win_network import ValueWinNetwork
+from networks.network import Network, PolicyValueNetwork, ValueWinNetwork
 
 from sevn import State
 
 
 class RGCNLayer(nn.Module):
-    def __init__(self, in_feat, out_feat, num_rels, with_bias=True, activation=None, on_cuda=False):
+    def __init__(self, in_feat, out_feat, num_rels, with_bias=True, activation=F.relu, on_cuda=False, first_act_softmax=False):
         super().__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
         self.num_rels = num_rels + 1  # add one for the identity relation
         self.with_bias = with_bias
         self.activation = activation
+        self.first_act_softmax = first_act_softmax
 
         # init weights
         self.weight = nn.Parameter(torch.empty(
@@ -51,7 +52,6 @@ class RGCNLayer(nn.Module):
             if self.with_bias:
                 msg += self.bias[edges.data['rel_type']]
 
-            # msg = msg * edges.data['norm']
             return {'msg': msg}
 
         def apply_func(nodes):
@@ -66,17 +66,20 @@ class RGCNLayer(nn.Module):
             if self.with_bias:
                 h += self.bias[-torch.ones(num_nodes, dtype=torch.int64)]
 
-            if self.activation:
+            if self.first_act_softmax:
+                col0 = nn.functional.softmax(h[:, 0], dim=0)
+                rest = self.activation(h[:, 1:])
+                h = torch.cat((col0.unsqueeze(1), rest), dim=1)
+            else:
                 h = self.activation(h)
-            # print("h:", h.requires_grad)
 
             return {'h': h}
 
         g.update_all(message_func, fn.max(msg='msg', out='agg'), apply_func)
 
 
-class DGLValueWinNetwork(ValueWinNetwork, nn.Module):
-    def __init__(self, dims=[3, 64, 64, 32, 32, 16, 8, 2], num_rels=5, on_cuda=False):
+class RGCNet(Network):
+    def __init__(self, dims=[3, 64, 64, 32, 32, 16, 8, 2], num_rels=5, on_cuda=False, first_act_softmax=False):
         super().__init__()
         self.dims = dims
         self.num_rels = num_rels
@@ -88,7 +91,7 @@ class DGLValueWinNetwork(ValueWinNetwork, nn.Module):
             activation_fn = torch.tanh if i+2 == len(dims) else F.relu
             self.layers.append(
                 RGCNLayer(dims[i], dims[i+1], num_rels,
-                          activation=activation_fn, on_cuda=on_cuda)
+                          activation=activation_fn, on_cuda=on_cuda, first_act_softmax=first_act_softmax)
             )
 
     def forward(self, g):
@@ -98,21 +101,53 @@ class DGLValueWinNetwork(ValueWinNetwork, nn.Module):
         g.ndata['h'] = g.ndata['features']
         g.ndata['h'].requires_grad = True
 
+        def transform():
+            for layer in self.layers:
+                layer(g)
+
+            return self.aggregate(g)
+
         if self.on_cuda:
             torch.device('cuda')
             with torch.cuda.device(0):
 
-                for layer in self.layers:
-                    layer(g)
+                return transform().to(device=torch.device('cpu'))
 
-                return torch.mean(g.ndata.pop('h'), 0).to(device=torch.device('cpu'))
+        return transform()
 
-        else:
-            for layer in self.layers:
-                layer(g)
-
-            return torch.mean(g.ndata.pop('h'), 0)
+    def aggregate(self, g):
+        raise NotImplemented
 
     def evaluate(self, state):
         g = state.to_dgl_graph()
-        return self.forward(g)
+        return self.forward(g).detach()
+
+
+class DGLValueWinNetwork(RGCNet, ValueWinNetwork):
+
+    def aggregate(self, g):
+        return torch.mean(g.ndata.pop('h'), 0)
+
+
+class PolicyValRGCN(RGCNet, PolicyValueNetwork):
+
+    def __init__(self, dims=[3, 64, 64, 32, 32, 16, 8, 2], num_rels=7, on_cuda=False):
+        super().__init__(dims, num_rels, on_cuda, first_act_softmax=True)
+
+    def aggregate(self, g):
+        h_data = g.ndata.pop('h')
+
+        return torch.cat((h_data[:,0], torch.mean(h_data[:,1]).unsqueeze(0)))
+
+    def evaluate(self, state):
+        g = state.to_dgl_graph(with_move_nodes=True)
+        result = self.forward(g).detach()
+
+        policy = result[:len(state.get_moves())]
+        value = result[-1]
+        # value assumes first value is the average value, as done in aggregate()
+
+        return (
+            policy/torch.sum(policy),
+            value
+        )
