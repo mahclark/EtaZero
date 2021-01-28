@@ -46,11 +46,11 @@ class EtaZero(Agent):
         super().set_game(game)
 
         if self.network_type == PolicyValueNetwork:
-            pi, _ = self.network.evaluate(self.game.state).detach()
+            pi, val = self.network.evaluate(self.game.state)
             self.tree_root = StateNode(self.game.state)
-            self.tree_root.expand(self.game, pi)
+            self.tree_root.expand(self.game, pi, val)
         else:
-            _, win_pred = self.network.evaluate(self.game.state).detach()
+            _, win_pred = self.network.evaluate(self.game.state)
             self.tree_root = StateNode(self.game.state, win_pred=win_pred)
             self.tree_root.expand_val_win(self.network, self.game)
         self.move_root = self.tree_root
@@ -135,8 +135,8 @@ class EtaZero(Agent):
                 return self.game.state.outcome*self.game.state.next_go
 
             if self.network_type == PolicyValueNetwork:
-                pi, win_pred = self.network.evaluate(self.game.state).detach()
-                node.expand(self.game, pi)
+                pi, win_pred = self.network.evaluate(self.game.state)
+                node.expand(self.game, pi, win_pred)
             else:
                 win_pred = node.win_pred
                 node.expand_val_win(self.network, self.game)
@@ -159,22 +159,37 @@ class EtaZero(Agent):
         state_strs = []
         state_graphs = []
         data_y = []
-        if self.network_type == PolicyValueNetwork:
-            raise NotImplementedError(
-                "get_training_labels() not implemented for a policy-value network")
-        else:
-            node = self.move_root
-            if node.state.outcome != 0:
-                node = self.move_root.parent  # we don't train on a terminating node
 
-            while node and node.Q != None:
+        node = self.move_root
+        if node.state.outcome != 0:
+            node = self.move_root.parent  # we don't train on a terminating node
+
+        while node != None and (self.network_type == PolicyValueNetwork or node.Q != None):
+
+            if self.network_type == PolicyValueNetwork:
+                graph = node.state.to_dgl_graph(with_move_nodes=True)
+
+                ns = torch.tensor([float(a.N) for a in node.actions])
+                policy = ns/torch.sum(ns)
+                value = 1 if self.game.state.outcome == node.state.next_go else -1
+                label = torch.zeros(graph.num_nodes())
+
+                # print(len(node.state.get_moves()), policy)
+
+                label[:len(node.state.get_moves())] = policy
+                label = torch.cat((label, torch.tensor(value).unsqueeze(0)))
+
+            else:
+                graph = node.state.to_dgl_graph()
 
                 win_label = 1 if self.game.state.outcome == node.state.next_go else -1
+                label = torch.tensor([node.Q, win_label])
 
-                state_strs.append(str(node.state))
-                state_graphs.append(node.state.to_dgl_graph())
-                data_y.append(torch.tensor([node.Q, win_label]))
-                node = node.parent
+            state_strs.append(str(node.state))
+            state_graphs.append(graph)
+            data_y.append(label)
+
+            node = node.parent
 
         return (state_strs, state_graphs, data_y)
 
@@ -193,8 +208,9 @@ class StateNode:
         self.actions = None
         self.Q = None
 
-    def expand(self, game, pi):
+    def expand(self, game, pi, win_pred):
         self.leaf = False
+        self.win_pred = win_pred
 
         assert(game.state.outcome == 0)
 
@@ -204,10 +220,14 @@ class StateNode:
             game.undo_move()
             return state
 
-        moves, probs = pi
-        assert(len(moves) == len(probs))
-        self.actions = [Action(moves[i], probs[i], StateNode(
-            get_child_state(moves[i]), self)) for i in range(len(moves))]
+        moves = game.get_moves()
+        assert(len(moves) == len(pi))
+
+        self.actions = [
+            Action(move, p, StateNode(get_child_state(move), self))
+            for move, p in zip(moves, pi)
+        ]
+
         self.action_dict = {action.move: action for action in self.actions}
 
     def expand_val_win(self, network, game):
@@ -223,7 +243,7 @@ class StateNode:
                 result = game.state.outcome*game.state.next_go
                 val, win = -result, result
             else:
-                val, win = network.evaluate(game.state).detach()
+                val, win = network.evaluate(game.state)
 
             action_data.append(
                 (move, StateNode(game.state, self, win_pred=win)))
@@ -298,12 +318,21 @@ class EtaZeroVisualiser:
         self.font = pygame.font.SysFont("Bahnschrift", 20)
         self.clock = pygame.time.Clock()
 
-        xs, _, ys = eta_zero.generate_training_labels()
+        if self.eta_zero.game.over():
+            xs, _, ys = eta_zero.generate_training_labels()
+        else:
+            xs, ys = [], []
 
-        self.labels = {
-            state: (val, win)
-            for state, (val, win) in zip(xs, ys)
-        }
+        if eta_zero.network_type == ValueWinNetwork:
+            self.labels = {
+                state: (val, win)
+                for state, (val, win) in zip(xs, ys)
+            }
+        else:
+            self.labels = {
+                state: pv
+                for state, pv in zip(xs, ys)
+            }
 
         # thread = Thread(target = self.begin)
         # thread.start()
@@ -335,10 +364,11 @@ class EtaZeroVisualiser:
                         if self.current_node.state in self.state_list and self.current_node.actions:
                             idx = self.state_list.index(
                                 self.current_node.state) + 1
-                            for action in self.current_node.actions:
-                                if action.next_state.state == self.state_list[idx]:
-                                    self.go_down(action.move)
-                                    break
+                            if idx < len(self.state_list):
+                                for action in self.current_node.actions:
+                                    if action.next_state.state == self.state_list[idx]:
+                                        self.go_down(action.move)
+                                        break
                     elif event.button == 6:
                         if len(self.undo_history) > 0:
                             self.redo_history.append(self.current_node)
@@ -402,8 +432,12 @@ class EtaZeroVisualiser:
 
         pygame.draw.circle(self.screen, blue, (margin, 80), 30)
 
-        prob_lbl = self.font.render("{:.1%}".format(
-            (1 + self.current_node.win_pred)/2), 1, white)
+        if self.current_node.win_pred is not None:
+            prob_lbl_text = f"{(1 + self.current_node.win_pred)/2:.1%}"
+        else:
+            prob_lbl_text = "None"
+
+        prob_lbl = self.font.render(prob_lbl_text, 1, white)
         self.screen.blit(prob_lbl, (margin - 27, 66))
 
         board_surf = pygame.Surface((120, 120), pygame.SRCALPHA, 32)
@@ -419,12 +453,24 @@ class EtaZeroVisualiser:
         self.screen.blit(grid_surf, (margin + 190, 44))
 
         if str(self.current_node.state) in self.labels:
-            label = self.labels[str(self.current_node.state)]
-            title_lbl = self.font.render(f"val, win", 1, white)
-            label_lbl = self.font.render(
-                f"{label[0]:.2f}, {label[1]:.2f}", 1, white)
+            if self.eta_zero.network_type == ValueWinNetwork:
+                label = ", ".join(
+                    map("{:.2f}".format, self.labels[str(self.current_node.state)]))
+                title_lbl = self.font.render(f"val, win", 1, white)
+                label_lbl = self.font.render(label, 1, white)
+            else:
+                label = f"{self.labels[str(self.current_node.state)][-1]:.2f}"
+                title_lbl = self.font.render(f"val", 1, white)
+                label_lbl = self.font.render(label, 1, white)
+
             self.screen.blit(title_lbl, (margin + 190 + grid_width + 40, 20))
             self.screen.blit(label_lbl, (margin + 190 + grid_width + 40, 66))
+
+        if str(self.current_node.state) in self.labels:
+            ps, _ = torch.sort(self.labels[str(self.current_node.state)], descending=True)
+            ps = self.labels[str(self.current_node.state)]
+        else:
+            ps = None
 
         for i, (action, score) in enumerate(self.actions):
             lbl0 = self.font.render(" | ".join(
@@ -438,8 +484,11 @@ class EtaZeroVisualiser:
             pygame.draw.circle(
                 self.screen, dot_text_col[0], (margin + self.h_gap*i, 220), 20)
             if action.next_state:
-                lbl1 = self.font.render("{:.1%}".format(
-                    (1 + action.next_state.win_pred)/2), 1, dot_text_col[1])
+                if action.next_state.win_pred is not None:
+                    lbl1_text = f"{(1 + action.next_state.win_pred)/2:.1%}"
+                else:
+                    lbl1_text = "None"
+                lbl1 = self.font.render(lbl1_text, 1, dot_text_col[1])
                 self.screen.blit(lbl1, (margin + self.h_gap*i - 20, 210))
 
             lbl2 = self.font.render("P = {:.1%}".format(action.P), 1, white)
@@ -457,6 +506,14 @@ class EtaZeroVisualiser:
 
             lbl6 = self.font.render("Sc = {:.3f}".format(score), 1, white)
             self.screen.blit(lbl6, (margin + self.h_gap*i - 10, 450))
+
+            if self.eta_zero.network_type == PolicyValueNetwork and ps is not None:
+                for j, move in enumerate(self.current_node.state.get_moves()):
+                    if move == action.move:
+                        break
+
+                lbl7 = self.font.render(f"Pi = {ps[j]:.3f}", 1, white)
+                self.screen.blit(lbl7, (margin + self.h_gap*i - 10, 500))
 
         for i, state in enumerate(self.state_list):
             col = blue if state == self.current_node.state else d_blue

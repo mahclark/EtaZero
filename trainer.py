@@ -10,20 +10,10 @@ from agents.uct_agent import UCTAgent
 from arena import Arena
 from math import ceil
 from networks.graph_networks import DGLValueWinNetwork
+from networks.network import PolicyValueNetwork
 from sevn import Game, State
 from torch import nn
 from tqdm import tqdm
-
-
-def takable_label_fn(g, state):
-    """
-    Given a state and its graph representation, returns a tensor of predicted labels
-    as (1,1) if the node is takable
-    and (0,0) if the node is not takable
-    """
-    positions = g.ndata["position"]
-    bools = [[tuple(pos) in state.board.get_takable()]*2 for pos in positions]
-    return torch.tensor(bools, dtype=torch.float)
 
 
 class Trainer:
@@ -103,9 +93,15 @@ class Trainer:
             with open(data_path, "a", newline="") as training_data:
                 writer = csv.writer(training_data)
                 for x, y in zip(state_strs, data_y):
+
+                    if isinstance(self.model, PolicyValueNetwork):
+                        csv_label = y.unsqueeze(0)
+                    else:
+                        csv_label = y
+
                     writer.writerow([
-                        x,              # x is game state string
-                        *y.tolist()     # y is pytorch tensor
+                        x,                      # x is game state string
+                        *csv_label.tolist()     # csv_label is pytorch tensor
                     ])
 
             print(" .", end='')
@@ -130,7 +126,8 @@ class Trainer:
                 x = row[0]
                 y = row[1:]
 
-                data.append(State.from_str(x).to_dgl_graph())
+                data.append(State.from_str(x).to_dgl_graph(
+                    with_move_nodes=isinstance(self.model, PolicyValueNetwork)))
                 labels.append(torch.tensor(list(map(float, y))))
 
             return data, labels
@@ -288,7 +285,8 @@ def get_win_data():
         for row in reader:
             state = State.from_str(row[0])
             if state.outcome == 0 and sum(state.board.get_at(x, y) > -1 for x in range(5) for y in range(5)) < 10:
-                data.append(state.to_dgl_graph())
+                data.append(state.to_dgl_graph(
+                    with_move_nodes=isinstance(self.model, PolicyValueNetwork)))
                 labels.append(torch.tensor([float(row[1])]))
 
     print(len(data))
