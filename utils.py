@@ -2,16 +2,17 @@ import os
 import torch
 
 
-def get_model_files(path="models"):
+def get_model_files(base_path="", ext_path="models"):
     return {
         int(path.split("-")[1]): path
-        for path in os.listdir(path)
+        for path in os.listdir(os.path.join(base_path, ext_path))
         if path[-3:] == ".pt"
     }
 
 
-def load_net(i, path="models"):
+def load_net(i, base_path="", ext_path="models"):
     return torch.load(os.path.join(
-        path,
-        get_model_files(path)[i]
+        base_path,
+        ext_path,
+        get_model_files(base_path, ext_path)[i]
     ))
