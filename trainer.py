@@ -126,11 +126,26 @@ class Trainer:
                 x = row[0]
                 y = row[1:]
 
-                data.append(State.from_str(x).to_dgl_graph(
-                    with_move_nodes=isinstance(self.model, PolicyValueNetwork)))
-                labels.append(torch.tensor(list(map(float, y))))
+                if isinstance(self.model, PolicyValueNetwork):
+                    data.append(State.from_str(
+                        x).to_dgl_graph(with_move_nodes=True))
+                    labels.append(torch.tensor(
+                        list(map(float, y[0][1:-1].split(", ")))))
+                else:
+                    data.append(State.from_str(x).to_dgl_graph())
+                    labels.append(torch.tensor(list(map(float, y))))
 
             return data, labels
+
+    @staticmethod
+    def pv_loss(output, label):
+        p, v = output[:-1], output[-1]
+        p_lab, v_lab = label[:-1], label[-1]
+
+        p_loss = 1 - torch.sum(p * p_lab)
+        v_loss = (v - v_lab)**2
+
+        return v_loss + p_loss
 
     def train(
             self,
@@ -211,7 +226,18 @@ class Trainer:
         print(
             f"Model saved:\n\tmodel: \t{self.model.elo_id}\n\tpath:  \t{path}")
 
-    def eta_training_loop(self, loops, base_agent=None, from_train_file=None, samples_per_move=50, games_7=50, games_5=0):
+    def eta_training_loop(
+            self,
+            loops,
+            base_agent=None,
+            from_train_file=None,
+            samples_per_move=50,
+            games_7=50,
+            games_5=0,
+            n_epochs=10,
+            lr=0.001,
+            batch_size=32,
+            l2norm=10e-4):
 
         if not self.loaded:
             path = self.get_save_path()
@@ -232,7 +258,13 @@ class Trainer:
 
             self.model.iterate_id()
 
-            self.train(all_data)
+            if isinstance(self.model, PolicyValueNetwork):
+                loss_fn = self.pv_loss
+            else:
+                loss_fn = nn.MSELoss(reduction='sum')
+
+            self.train(all_data, n_epochs=n_epochs, lr=lr,
+                       batch_size=batch_size, l2norm=l2norm, loss_fn=loss_fn)
 
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
