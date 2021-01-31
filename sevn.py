@@ -1,8 +1,9 @@
-from agents.random_agent import RandomAgent
 import dgl
 import numpy as np
 import time
 import torch
+from agents.random_agent import RandomAgent
+from functools import total_ordering
 from queue import PriorityQueue
 from random import shuffle
 from torch import tensor
@@ -136,6 +137,7 @@ class Game:
         )
 
 
+@total_ordering
 class Move:
 
     def __init__(self, move_set):
@@ -160,6 +162,12 @@ class Move:
 
     def __repr__(self):
         return self.__str__()
+
+    def __eq__(self, other):
+        return other and self.tiles == other.tiles
+
+    def __lt__(self, other):
+        return self.tiles < other.tiles
 
 
 class Board:
@@ -200,11 +208,11 @@ class Board:
         ]
 
         # All possible next moves.
-        self.moves = [
-            comb
+        self.moves = sorted([
+            Move(comb)
             for tiles in takable_colors
             for comb in self._all_combs(tiles)
-        ]
+        ])
 
         self.hash_val = hash(self.board)
 
@@ -215,11 +223,11 @@ class Board:
         """
         combs = []
         for b in range(1, 2**len(a)):
-            combs.append(Move({
+            combs.append({
                 a[i]
                 for i in range(len(a))
                 if (b >> i) & 1 == 1
-            }))
+            })
 
         return combs
 
@@ -257,7 +265,7 @@ class Board:
 
     def is_empty(self):
         return self.num_tiles() == 0
-    
+
     def num_tiles(self):
         if self.count is None:
             self.count = sum(
@@ -265,7 +273,7 @@ class Board:
                 for row in range(self.base)
                 for col in range(self.base)
             )
-        
+
         return self.count
 
     def get_takable(self):
@@ -448,6 +456,8 @@ class Relation:
     DIAGONAL = 2
     TAKABLE = 3
     SAME_COLOR = 4
+    TO_MOVE = 5
+    FROM_MOVE = 6
 
 
 class State:
@@ -509,9 +519,12 @@ class State:
 
     def __ne__(self, other):
         return not self.__eq__(other)
-    
+
     def num_tiles(self):
         return self.board.num_tiles()
+
+    def get_moves(self):
+        return self.board.get_moves()
 
     def get_game_str(self):
         """
@@ -578,11 +591,14 @@ class State:
             (score_pair[0] - score_pair[1])*self.next_go
         ]
 
-    def to_dgl_graph(self):
+    def to_dgl_graph(self, with_move_nodes=False):
         if self.dgl_graph != None:
             return self.dgl_graph
 
         size_bound = self.board.base**3 + 16*self.board.base**2
+
+        if with_move_nodes:
+            size_bound += (2**self.board.base)*self.board.base*4
 
         class Edges:
             def __init__(self):
@@ -593,6 +609,7 @@ class State:
 
             def add_edge(self, u, v, rel_id, both_ways=False):
                 if self.size == size_bound:
+                    print(self)
                     print(size_bound)
                 self.etypes[self.size] = rel_id
                 self.src[self.size] = u
@@ -637,10 +654,14 @@ class State:
         features = []
 
         index_map = {}  # from board pos to node index
-        pos_order = []  # all tile positions in order of node index
 
         takable_set = set()
         color_sets = {}
+
+        if with_move_nodes:
+            # Compute the node features for move nodes
+            for move in self.get_moves():
+                features.append(self.get_feature_vector(move.tiles[0]))
 
         # Assign the index map and build the node features
         # [player’s colour score, opponent’s colour score, score difference]
@@ -650,7 +671,6 @@ class State:
                 tile = self.board.get_at(pos)
                 if tile > -1:
                     index_map[pos] = len(features)
-                    pos_order.append(pos)
 
                     color_set = color_sets.get(tile, set())
                     color_set.add(pos)
@@ -660,6 +680,13 @@ class State:
                         takable_set.add(pos)
 
                     features.append(self.get_feature_vector(pos))
+
+        # Add all move relations
+        if with_move_nodes:
+            for i, move in enumerate(self.get_moves()):
+                for pos in move:
+                    edges.add_edge(i, index_map[pos], Relation.TO_MOVE)
+                    edges.add_edge(index_map[pos], i, Relation.FROM_MOVE)
 
         # Add all positional relations
         for pos, index in index_map.items():
@@ -713,7 +740,6 @@ class State:
 
         graph.edata.update({"rel_type": tensor(edges.get_etypes())})
         graph.ndata.update({"features": tensor(features, dtype=torch.float)})
-        graph.ndata.update({"position": tensor(pos_order)})
 
         self.dgl_graph = graph
 
@@ -721,25 +747,10 @@ class State:
 
 
 if __name__ == "__main__":
+    move1 = Move({Pos(1, 2)})
+    move2 = Move({Pos(1, 2), Pos(2, 2)})
 
-    # st = get_time()
-
-    # times = []
-    # for i in range(1000):
-    #     game = Game.from_str("1/aaaaaaa/fdcfaaa.fafgbde.eedggec.accbbfb.fegdfba.gdeccbc.ddabegg")
-    #     agent = RandomAgent(game)
-    #     while not game.over():
-    #         t = get_time()
-    #         game.make_move(agent.select_move())
-    #         times.append(get_time() - t)
-
-    # print(pprint("total:", diff_str(st)))
-
-    # print(len(times))
-    # print(sum(times))
-    # print(1000*sum(times)/len(times))
-
-    model = torch.load("models\\DGLValueWinNetwork-11-2021-01-08-19-34-00.pt")
-    print("Eval:", model.evaluate(Game.from_str("1/aaa/abc.3.3").state))
-    print("Eval:", model.evaluate(Game.from_str("2/baa/1bc.3.3").state))
-    print("Eval:", model.evaluate(Game.from_str("1/b-ba/2c.3.3").state))
+    print(move1, move2)
+    print(move1 < move2)
+    print(move1 == move2)
+    print(move1 > move2)
