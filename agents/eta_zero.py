@@ -2,7 +2,7 @@ import numpy as np
 import pygame
 import time
 import torch
-from agents.agent import Agent
+from agents.agent import Agent, Series
 from collections import deque, namedtuple
 from math import sqrt
 from networks.graph_networks import DGLValueWinNetwork
@@ -12,9 +12,32 @@ from renderer import Renderer
 from sevn import Game, State
 from threading import Thread
 from tqdm import tqdm
+from utils import get_model_files,  load_net
 
 
 class EtaZero(Agent):
+
+    class Series(Series):
+
+        def __init__(self, samples_per_move, base_path="", ext_path="models"):
+            self.label = f"{EtaZero.name}-{samples_per_move}"
+            self.samples_per_move = samples_per_move
+            self.base_path = base_path
+            self.ext_path = ext_path
+
+        def get_members(self):
+            return [
+                EtaZero(load_net(i, self.base_path, self.ext_path),
+                        self.samples_per_move)
+                for i, _ in sorted(get_model_files(self.base_path, self.ext_path).items())
+            ]
+
+        def __hash__(self):
+            return hash(self.samples_per_move)
+
+        def __eq__(self, other):
+            return other and isinstance(other, Series) and \
+                self.samples_per_move == other.samples_per_move
 
     name = "EtaZero"
 
@@ -30,7 +53,7 @@ class EtaZero(Agent):
         self.training = training
         self.progress = 0
         self.samples_per_move = samples_per_move
-        self.elo_id = f"{self.name}-{samples_per_move}-{self.network.elo_id}"
+        self.elo_id = self.make_elo_id(samples_per_move, self.network.elo_id)
         self.time_id = f"{self.name}-{samples_per_move}"
 
         self.network_type = None
@@ -41,6 +64,10 @@ class EtaZero(Agent):
         if not self.network_type:
             raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
                             .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
+
+    @staticmethod
+    def make_elo_id(samples_per_move, network_id):
+        return f"{EtaZero.name}-{samples_per_move}-{network_id}"
 
     def set_game(self, game):
         super().set_game(game)
@@ -467,7 +494,8 @@ class EtaZeroVisualiser:
             self.screen.blit(label_lbl, (margin + 190 + grid_width + 40, 66))
 
         if str(self.current_node.state) in self.labels:
-            ps, _ = torch.sort(self.labels[str(self.current_node.state)], descending=True)
+            ps, _ = torch.sort(
+                self.labels[str(self.current_node.state)], descending=True)
             ps = self.labels[str(self.current_node.state)]
         else:
             ps = None

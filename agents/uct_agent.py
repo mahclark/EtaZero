@@ -1,10 +1,39 @@
 import functools
-from agents.agent import Agent
+from agents.agent import Agent, Series
 from math import sqrt, log
 from tree_search import TreeSearch
 
 
 class UCTAgent(Agent):
+
+    class Series(Series):
+
+        label = "UCT"
+
+        all_samples = (
+            *range(100, 201, 100),
+            *range(500, 501),
+            *range(1000, 9001, 1000)
+        )
+
+        def __init__(self, all_samples=None):
+            if all_samples is None:
+                all_samples = self.all_samples
+
+            self.members = tuple(
+                UCTAgent(samples)
+                for samples in all_samples
+            )
+
+        def get_members(self):
+            return self.members
+
+        def __hash__(self):
+            return hash(self.all_samples)
+
+        def __eq__(self, other):
+            return other and isinstance(other, Series) and \
+                self.all_samples == other.all_samples
 
     name = "UCT Agent"
     C = 0.5

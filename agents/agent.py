@@ -31,3 +31,12 @@ class Agent:
 
     def get_progress(self):
         return None
+
+
+class Series:
+
+    def get_members(self):
+        raise NotImplemented
+
+    def get_at(self, i):
+        return self.get_members()[i]
