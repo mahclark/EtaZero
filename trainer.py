@@ -18,11 +18,16 @@ from tqdm import tqdm
 
 class Trainer:
 
-    def __init__(self, model=None, load_path=None, base_path=""):
+    def __init__(self, model=None, load_path=None, base_path="", section=""):
         self.base_path = base_path
+        self.section = section
 
         if load_path:
-            model = torch.load(base_path + load_path)
+            model = torch.load(os.path.join(
+                base_path,
+                section,
+                load_path
+            ))
             self.loaded = True
         else:
             self.loaded = False
@@ -37,7 +42,8 @@ class Trainer:
 
         self.training_data_path = os.path.join(
             base_path,
-            "training_data"
+            "training_data",
+            self.section
         )
 
     def _default_data_generator(self, games_7=50, games_5=0, samples_per_move=50):
@@ -50,7 +56,11 @@ class Trainer:
 
         eta_zero_id = EtaZero(self.model, training=True,
                               samples_per_move=samples_per_move).elo_id
-        data_path = os.path.join(self.training_data_path, f"{eta_zero_id}.csv")
+        data_path = os.path.join(
+            self.training_data_path,
+            self.section,
+            f"{eta_zero_id}.csv"
+        )
         print(f"Saving data at:\n{data_path}")
 
         print("generating data from {} games...".format(num_games))
@@ -275,6 +285,7 @@ class Trainer:
         return os.path.join(
             self.base_path,
             "models",
+            self.section,
             self.model.elo_id + ".pt"
         )
 

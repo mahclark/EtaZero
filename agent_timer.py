@@ -12,10 +12,11 @@ from sevn import Game
 
 class AgentTimer:
 
-    def __init__(self, base_path=""):
+    def __init__(self, base_path="", section=""):
         self.timing_data_path = os.path.join(
             base_path,
             "timing_data",
+            section,
             "times.csv"
         )
 
@@ -95,6 +96,8 @@ class AgentTimer:
 
             return num_games
 
+from sevn import State
+import numpy as np
 
 if __name__ == "__main__":
     timer = AgentTimer()
@@ -107,10 +110,26 @@ if __name__ == "__main__":
     #     num_games=1
     # )
 
-    print(timer.get_info())
+    # print(timer.get_info())
 
-    for time_id, times in timer.avg_times().items():
-        plt.plot(list(times.keys()), list(times.values()), label=time_id)
+    # for time_id, times in timer.avg_times().items():
+    #     plt.plot(list(times.keys()), list(times.values()), label=time_id)
 
-    plt.legend(bbox_to_anchor=(0.05, 1))
+    # plt.legend(bbox_to_anchor=(0.05, 1))
+    # plt.show()
+
+    s = State.from_str("1/-b-cbgda-g/7.7.7.1eegf2.4d2.4b2.7")
+
+    ps = []
+    vs = []
+    for i in range(63):
+        p,v = utils.load_net(i).evaluate(s)
+        ps.append(p.tolist())
+        vs.append(v.tolist())
+    
+    plt.plot(vs, label="Value")
+
+    for p, move in zip(np.array(ps).T, s.get_moves()):
+        plt.plot(p, label=str(move))
+    plt.legend(bbox_to_anchor=(1.05, 1))
     plt.show()

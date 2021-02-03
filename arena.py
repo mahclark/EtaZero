@@ -86,11 +86,13 @@ class Arena:
     Battles agents and records their elo ratings and play history.
     """
 
-    def __init__(self, base_path="", saving_enabled=True):
+    def __init__(self, base_path="", section="", saving_enabled=True):
         self.base_path = base_path
         self.elo_rating_path = os.path.join(
             base_path,
-            os.path.join("elo", "ratings.json")
+            "elo",
+            section,
+            "ratings.json"
         )
         self.tasks = []
         self.saving_enabled = saving_enabled
@@ -184,7 +186,8 @@ class Arena:
         print()
 
         print(f"Won {wins} of {games}")
-        print(f"New elo: {rating} (history = {history})")
+        if game_pairs > 0:
+            print(f"New elo: {rating} (history = {history})")
 
     def _play_game(self, state, p1, p2):
         """
@@ -304,6 +307,8 @@ class Arena:
 
         uct_samples = UCTAgent.Series.all_samples
 
+        best = (0, 0)
+
         for elo_id, rating in ratings.items():
             split_id = elo_id.split("-")
 
@@ -315,15 +320,29 @@ class Arena:
                     plt.axhline(y=rating, linestyle=":", label=label)
 
             elif split_id[0] == "EtaZero":
+                iteration = int(split_id[3])
+                samples = int(split_id[1])
                 xy = series_ratings.setdefault(
-                    EtaZero.Series(int(split_id[1])), ([], []))
-                xy[0].append(int(split_id[3]))
+                    EtaZero.Series(samples), ([], []))
+
+                xy[0].append(iteration)
                 xy[1].append(rating)
+
+                if samples == 50:
+                    best = max(best, (rating, iteration))
+
+        del series_ratings[EtaZero.Series(100)]
+        del series_ratings[EtaZero.Series(200)]
 
         for series, (x, y) in series_ratings.items():
             x, y = zip(*sorted(zip(x, y)))
             plt.plot(x, y, label=series.label)
 
+        plt.plot([0, max(series_ratings[EtaZero.Series(50)][0])], [
+                 best[0], best[0]], label=f"Iter {best[1]}: {best[0]}")
+
+        plt.ylabel("Elo Rating")
+        plt.xlabel("Training Iteration")
         plt.legend(loc="lower right")  # bbox_to_anchor=(.95, .5))
         plt.show()
 

@@ -19,17 +19,17 @@ class EtaZero(Agent):
 
     class Series(Series):
 
-        def __init__(self, samples_per_move, base_path="", ext_path="models"):
+        def __init__(self, samples_per_move, base_path="", section=""):
             self.label = f"{EtaZero.name}-{samples_per_move}"
             self.samples_per_move = samples_per_move
             self.base_path = base_path
-            self.ext_path = ext_path
+            self.section = section
 
         def get_members(self):
             return [
-                EtaZero(load_net(i, self.base_path, self.ext_path),
+                EtaZero(load_net(i, self.base_path, self.section),
                         self.samples_per_move)
-                for i, _ in sorted(get_model_files(self.base_path, self.ext_path).items())
+                for i, _ in sorted(get_model_files(self.base_path, self.section).items())
             ]
 
         def __hash__(self):
