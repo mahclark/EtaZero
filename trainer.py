@@ -5,10 +5,10 @@ import numpy as np
 import os
 import torch
 import utils
+from agent_evaluation.arena import Arena
 from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
-from arena import Arena
 from math import ceil
 from networks.graph_networks import DGLValueWinNetwork
 from networks.network import PolicyValueNetwork

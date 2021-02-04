@@ -1,4 +1,3 @@
-
 import csv
 import json
 import math
@@ -152,8 +151,9 @@ class Arena:
                                 enemies.append((enemy, ratings[enemy.elo_id]))
 
                             if enemy.elo_id in history.get(elo_id, {}):
-                                played.append((enemy, history[elo_id][enemy.elo_id].games))
-                        
+                                played.append(
+                                    (enemy, history[elo_id][enemy.elo_id].games))
+
                         if len(played) >= 3:
                             enemy, _ = min(played, key=lambda x: x[1])
 
@@ -166,7 +166,7 @@ class Arena:
                                 key=lambda e: abs(
                                     e[1] - ratings[elo_id] - task.elo_shift)
                             )
-                            
+
                         return enemy
 
                 for i, agent in agents:
@@ -479,32 +479,3 @@ class LockParser:
             self.file.truncate()
 
         self.file.close()
-
-
-if __name__ == "__main__":
-    arena = Arena()
-
-    # arena.csv_to_json("elo\\ratings.csv")
-
-    # smps = [100, 200, 500, 600]
-
-    # arena.add_task(
-    #     UCTAgent.Series(smps),
-    #     UCTAgent.Series(smps),
-    #     game_pairs=1,
-    #     shift=1
-    # )
-
-    # arena.add_task(
-    #     UCTAgent.Series(smps),
-    #     UCTAgent.Series(smps),
-    #     game_pairs=1,
-    #     shift=2
-    # )
-
-    # arena.start()
-
-    # arena.battle(UCTAgent(200), UCTAgentOld(200), game_pairs=20)
-    # arena.battle(UCTAgent(1000), UCTAgentOld(1000), game_pairs=20)
-
-    arena.plot_all()
