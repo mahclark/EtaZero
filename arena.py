@@ -10,7 +10,7 @@ import time
 import torch
 import utils
 import uuid
-from agents.agent import Series
+from agents.agent import NoAgent, Series
 from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
@@ -25,6 +25,7 @@ class Task(NamedTuple):
     enemy_series: Series
     game_pairs: int
     shift: int
+    elo_shift: int
     base: int = 7
 
 
@@ -97,25 +98,81 @@ class Arena:
         self.tasks = []
         self.saving_enabled = saving_enabled
 
-    def add_task(self, series, enemy_series, game_pairs, shift, base=7):
-        self.tasks.append(Task(
-            series,
-            enemy_series,
-            game_pairs,
-            shift,
-            base
-        ))
+    def add_task(self, series, enemy_series, game_pairs, shift=None, base=7):
+        shift_pairs = []
+        try:
+            for shift_val in shift:
+                shift_pairs.append((shift_val, None))
+
+        except TypeError:
+            if shift is None and isinstance(enemy_series, UCTAgent.Series):
+                elo_shifts = [-400, 0, 400]
+                for elo_shift in elo_shifts:
+                    shift_pairs.append((None, elo_shift))
+            else:
+                shift_pairs.append((None, None))
+
+        for shift, elo_shift in shift_pairs:
+            self.tasks.append(Task(
+                series,
+                enemy_series,
+                game_pairs,
+                shift,
+                elo_shift,
+                base
+            ))
 
     def start(self, task_wait=10):
         while True:
             no_tasks = True
             for task in self.tasks:
-                for i, agent in list(enumerate(task.series.get_members()))[abs(task.shift):]:
-                    shift_index = i - abs(task.shift)
 
+                shift = task.shift
+                if isinstance(task.enemy_series, RandomAgent.Series):
+                    shift = 0
+
+                agents = list(enumerate(task.series.get_members()))
+                if shift is not None:
+                    agents = agents[shift:]
+
+                    def get_enemy(i):
+                        return task.enemy_series.get_at(i - shift)
+
+                elif task.elo_shift is not None:
+                    # Finds the UCT with the closest elo
+                    def get_enemy(i):
+                        ratings, history = LockParser.read(
+                            self.elo_rating_path)
+                        elo_id = task.series.get_at(i).elo_id
+
+                        enemies = []
+                        played = []
+                        for enemy in task.enemy_series.get_members():
+                            if enemy.elo_id in ratings:
+                                enemies.append((enemy, ratings[enemy.elo_id]))
+
+                            if enemy.elo_id in history.get(elo_id, {}):
+                                played.append((enemy, history[elo_id][enemy.elo_id].games))
+                        
+                        if len(played) >= 3:
+                            enemy, _ = min(played, key=lambda x: x[1])
+
+                        else:
+                            if len(enemies) == 0 or elo_id not in ratings:
+                                raise NoAgent
+
+                            enemy, _ = min(
+                                enemies,
+                                key=lambda e: abs(
+                                    e[1] - ratings[elo_id] - task.elo_shift)
+                            )
+                            
+                        return enemy
+
+                for i, agent in agents:
                     try:
-                        enemy = task.enemy_series.get_at(shift_index)
-                    except IndexError:
+                        enemy = get_enemy(i)
+                    except NoAgent:
                         continue
 
                     _, history = LockParser.read(self.elo_rating_path)
@@ -300,24 +357,30 @@ class Arena:
 
     def plot_all(self):
         self._save()
+        plt.figure(figsize=(13, 10), facecolor="w")
 
         ratings, _ = LockParser.read(self.elo_rating_path)
 
         series_ratings = {}
 
-        uct_samples = UCTAgent.Series.all_samples
-
         best = (0, 0)
+
+        eta_iters = [
+            int(eid.split("-")[3])
+            for eid in ratings.keys()
+            if eid.split("-")[0] == "EtaZero"
+        ]
+        max_iter = 1 if len(eta_iters) == 0 else max(eta_iters)
+
+        uct_label_args = dict(x=max_iter, fontsize=8, va="center", ha="right")
 
         for elo_id, rating in ratings.items():
             split_id = elo_id.split("-")
 
             if split_id[0] == "uct":
-                if int(split_id[1]) in uct_samples:
-                    label = None
-                    if int(split_id[1]) == max(uct_samples):
-                        label = f"UCT {min(uct_samples)} to {max(uct_samples)}"
-                    plt.axhline(y=rating, linestyle=":", label=label)
+                plt.axhline(y=rating, linestyle=":")
+                plt.text(y=rating, s=elo_id, c="white",
+                         **uct_label_args, bbox=dict(fc="white", ec="white"))
 
             elif split_id[0] == "EtaZero":
                 iteration = int(split_id[3])
@@ -331,8 +394,11 @@ class Arena:
                 if samples == 50:
                     best = max(best, (rating, iteration))
 
-        del series_ratings[EtaZero.Series(100)]
-        del series_ratings[EtaZero.Series(200)]
+        for elo_id, rating in ratings.items():
+            split_id = elo_id.split("-")
+
+            if split_id[0] == "uct":
+                plt.text(y=rating, s=elo_id, **uct_label_args)
 
         for series, (x, y) in series_ratings.items():
             x, y = zip(*sorted(zip(x, y)))
@@ -343,7 +409,7 @@ class Arena:
 
         plt.ylabel("Elo Rating")
         plt.xlabel("Training Iteration")
-        plt.legend(loc="lower right")  # bbox_to_anchor=(.95, .5))
+        plt.legend(loc="lower center")  # , bbox_to_anchor=(.95, .5))
         plt.show()
 
 
@@ -437,5 +503,8 @@ if __name__ == "__main__":
     # )
 
     # arena.start()
+
+    # arena.battle(UCTAgent(200), UCTAgentOld(200), game_pairs=20)
+    # arena.battle(UCTAgent(1000), UCTAgentOld(1000), game_pairs=20)
 
     arena.plot_all()

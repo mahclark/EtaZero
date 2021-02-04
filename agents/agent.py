@@ -39,4 +39,11 @@ class Series:
         raise NotImplemented
 
     def get_at(self, i):
-        return self.get_members()[i]
+        try:
+            return self.get_members()[i]
+        except IndexError:
+            raise NoAgent
+
+
+class NoAgent(Exception):
+    pass
