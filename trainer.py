@@ -4,6 +4,7 @@ import datetime
 import numpy as np
 import os
 import torch
+import utils
 from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
@@ -13,30 +14,22 @@ from networks.graph_networks import DGLValueWinNetwork
 from networks.network import PolicyValueNetwork
 from sevn import Game, State
 from torch import nn
-from tqdm import tqdm
 
 
 class Trainer:
 
-    def __init__(self, model=None, load_path=None, base_path="", section=""):
+    def __init__(self, model=None, load_iter=None, base_path="", section=""):
         self.base_path = base_path
         self.section = section
 
-        if load_path:
-            model = torch.load(os.path.join(
-                base_path,
-                section,
-                load_path
-            ))
+        if load_iter is not None:
+            model = utils.load_net(load_iter, base_path, section)
             self.loaded = True
         else:
             self.loaded = False
 
         if not model:
-            model = DGLValueWinNetwork(
-                dims=[3, 10, 10, 2],
-                on_cuda=True
-            )
+            raise Exception("Model or load iteration must be provided")
 
         self.model = model
 
@@ -58,7 +51,6 @@ class Trainer:
                               samples_per_move=samples_per_move).elo_id
         data_path = os.path.join(
             self.training_data_path,
-            self.section,
             f"{eta_zero_id}.csv"
         )
         print(f"Saving data at:\n{data_path}")
