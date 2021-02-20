@@ -1,0 +1,154 @@
+{
+   "ratings": {
+      "Random Agent": 500.0,
+      "uct-100": 647.2,
+      "uct-200": 722.8,
+      "uct-500": 900.8,
+      "uct-750": 1020.1,
+      "uct-1000": 1080.8,
+      "uct-1500": 1188.3,
+      "uct-2000": 1223.2,
+      "uct-2500": 1370.4,
+      "uct-3000": 1405.3,
+      "uct-3500": 1475.7,
+      "uct-4000": 1583.2,
+      "uct-4500": 1690.7,
+      "uct-5000": 1761.1,
+      "uct-6000": 1908.3,
+      "EtaZero-50-DGLValueWinNetwork-11-2021-01-08-19-34-00": 670.2,
+      "EtaZero-50-DGLValueWinNetwork-1-2021-01-04-18-21-32": 862.6,
+      "EtaZero-50-DGLValueWinNetwork-2-2021-01-05-01-47-57": 885.5,
+      "EtaZero-50-DGLValueWinNetwork-18-2021-01-10-18-31-50": 822.6,
+      "EtaZero-50-DGLValueWinNetwork-3-2021-01-05-21-37-22": 885.5,
+      "EtaZero-50-DGLValueWinNetwork-4-2021-01-06-01-46-54": 1032.7,
+      "EtaZero-50-DGLValueWinNetwork-5-2021-01-06-15-54-02": 791.9,
+      "EtaZero-50-DGLValueWinNetwork-6-2021-01-06-21-30-58": 684.4,
+      "EtaZero-50-DGLValueWinNetwork-7-2021-01-07-04-08-31": 875.2,
+      "EtaZero-50-DGLValueWinNetwork-8-2021-01-07-08-46-17": 840.3,
+      "EtaZero-50-DGLValueWinNetwork-9-2021-01-07-20-15-04": 693.1,
+      "EtaZero-50-DGLValueWinNetwork-10-2021-01-08-15-22-47": 840.3,
+      "EtaZero-50-DGLValueWinNetwork-12-2021-01-09-18-33-21": 740.6,
+      "EtaZero-50-DGLValueWinNetwork-13-2021-01-10-01-19-53": 593.4,
+      "EtaZero-50-DGLValueWinNetwork-14-2021-01-10-04-53-26": 700.9,
+      "EtaZero-50-DGLValueWinNetwork-15-2021-01-10-08-09-41": 630.5,
+      "EtaZero-50-DGLValueWinNetwork-16-2021-01-10-11-28-23": 777.7,
+      "EtaZero-50-DGLValueWinNetwork-17-2021-01-10-15-01-14": 670.2,
+      "EtaZero-50-DGLValueWinNetwork-19-2021-01-10-21-55-17": 787.7,
+      "EtaZero-50-DGLValueWinNetwork-20-2021-01-11-19-48-01": 752.8
+   },
+   "history": {
+      "Random Agent": {},
+      "uct-100": {
+         "Random Agent": [140, 200]
+      },
+      "uct-200": {
+         "Random Agent": [15, 20],
+         "uct-100": [13, 20]
+      },
+      "uct-500": {
+         "uct-100": [16, 20],
+         "uct-200": [15, 20]
+      },
+      "uct-750": {
+         "uct-200": [18, 20],
+         "uct-500": [11, 20]
+      },
+      "uct-1000": {
+         "uct-500": [17, 20],
+         "uct-750": [20, 40]
+      },
+      "uct-1500": {
+         "uct-1000": [13, 20]
+      },
+      "uct-2000": {
+         "uct-1500": [11, 20]
+      },
+      "uct-2500": {
+         "uct-2000": [14, 20]
+      },
+      "uct-3000": {
+         "uct-2500": [22, 40]
+      },
+      "uct-3500": {
+         "uct-3000": [12, 20]
+      },
+      "uct-4000": {
+         "uct-3500": [13, 20]
+      },
+      "uct-4500": {
+         "uct-4000": [13, 20]
+      },
+      "uct-5000": {
+         "uct-4500": [12, 20]
+      },
+      "uct-6000": {
+         "uct-5000": [14, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-11-2021-01-08-19-34-00": {
+         "Random Agent": [15, 20],
+         "EtaZero-50-DGLValueWinNetwork-10-2021-01-08-15-22-47": [5, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-1-2021-01-04-18-21-32": {
+         "uct-100": [17, 20],
+         "Random Agent": [18, 20],
+         "uct-200": [11, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-2-2021-01-05-01-47-57": {
+         "EtaZero-50-DGLValueWinNetwork-1-2021-01-04-18-21-32": [19, 40],
+         "uct-100": [16, 20],
+         "uct-200": [16, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-18-2021-01-10-18-31-50": {
+         "EtaZero-50-DGLValueWinNetwork-1-2021-01-04-18-21-32": [14, 20],
+         "EtaZero-50-DGLValueWinNetwork-17-2021-01-10-15-01-14": [9, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-3-2021-01-05-21-37-22": {
+         "EtaZero-50-DGLValueWinNetwork-2-2021-01-05-01-47-57": [10, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-4-2021-01-06-01-46-54": {
+         "EtaZero-50-DGLValueWinNetwork-3-2021-01-05-21-37-22": [14, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-5-2021-01-06-15-54-02": {
+         "EtaZero-50-DGLValueWinNetwork-4-2021-01-06-01-46-54": [4, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-6-2021-01-06-21-30-58": {
+         "EtaZero-50-DGLValueWinNetwork-5-2021-01-06-15-54-02": [7, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-7-2021-01-07-04-08-31": {
+         "EtaZero-50-DGLValueWinNetwork-6-2021-01-06-21-30-58": [15, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-8-2021-01-07-08-46-17": {
+         "EtaZero-50-DGLValueWinNetwork-7-2021-01-07-04-08-31": [9, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-9-2021-01-07-20-15-04": {
+         "EtaZero-50-DGLValueWinNetwork-8-2021-01-07-08-46-17": [6, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-10-2021-01-08-15-22-47": {
+         "EtaZero-50-DGLValueWinNetwork-9-2021-01-07-20-15-04": [14, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-12-2021-01-09-18-33-21": {
+         "EtaZero-50-DGLValueWinNetwork-11-2021-01-08-19-34-00": [12, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-13-2021-01-10-01-19-53": {
+         "EtaZero-50-DGLValueWinNetwork-12-2021-01-09-18-33-21": [6, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-14-2021-01-10-04-53-26": {
+         "EtaZero-50-DGLValueWinNetwork-13-2021-01-10-01-19-53": [13, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-15-2021-01-10-08-09-41": {
+         "EtaZero-50-DGLValueWinNetwork-14-2021-01-10-04-53-26": [8, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-16-2021-01-10-11-28-23": {
+         "EtaZero-50-DGLValueWinNetwork-15-2021-01-10-08-09-41": [14, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-17-2021-01-10-15-01-14": {
+         "EtaZero-50-DGLValueWinNetwork-16-2021-01-10-11-28-23": [7, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-19-2021-01-10-21-55-17": {
+         "EtaZero-50-DGLValueWinNetwork-18-2021-01-10-18-31-50": [9, 20]
+      },
+      "EtaZero-50-DGLValueWinNetwork-20-2021-01-11-19-48-01": {
+         "EtaZero-50-DGLValueWinNetwork-19-2021-01-10-21-55-17": [9, 20]
+      }
+   }
+}
