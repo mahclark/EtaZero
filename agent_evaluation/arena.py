@@ -105,7 +105,7 @@ class Arena:
 
         except TypeError:
             if shift is None and isinstance(enemy_series, UCTAgent.Series):
-                elo_shifts = [-400, 0, 400]
+                elo_shifts = [-400, 0]
                 for elo_shift in elo_shifts:
                     shift_pairs.append((None, elo_shift))
             else:
@@ -135,7 +135,7 @@ class Arena:
                     agents = agents[shift:]
 
                     def get_enemy(i):
-                        return task.enemy_series.get_at(i - shift)
+                        return task.enemy_series.get_at(i - shift), None
 
                 elif task.elo_shift is not None:
                     # Finds the UCT with the closest elo
@@ -154,8 +154,10 @@ class Arena:
                                 played.append(
                                     (enemy, history[elo_id][enemy.elo_id].games))
 
-                        if len(played) >= 3:
+                        total_played = None
+                        if len(played) >= 2:
                             enemy, _ = min(played, key=lambda x: x[1])
+                            total_played = sum(2*(p[1]//2) for p in played)
 
                         else:
                             if len(enemies) == 0 or elo_id not in ratings:
@@ -167,22 +169,26 @@ class Arena:
                                     e[1] - ratings[elo_id] - task.elo_shift)
                             )
 
-                        return enemy
+                        return enemy, total_played
 
                 for i, agent in agents:
                     try:
-                        enemy = get_enemy(i)
+                        enemy, total_played = get_enemy(i)
                     except NoAgent:
                         continue
 
                     _, history = LockParser.read(self.elo_rating_path)
 
-                    games_played = history.get(agent.elo_id, {}).get(
-                        enemy.elo_id, GameStats(0, 0)).games
+                    if total_played is None:
+                        games_played = history.get(agent.elo_id, {}).get(
+                            enemy.elo_id, GameStats(0, 0)).games
+                    else:
+                        games_played = total_played
+                    
                     if games_played < task.game_pairs*2:
                         no_tasks = False
-                        self.battle(agent, enemy, task.game_pairs -
-                                    games_played//2, task.base)
+                        self.battle(agent, enemy, min(10, task.game_pairs -
+                                    games_played//2), task.base)
                         break
 
             if no_tasks:
@@ -377,6 +383,7 @@ class Arena:
         for elo_id, rating in ratings.items():
             split_id = elo_id.split("-")
 
+            # UCT lines and white boxes
             if split_id[0] == "uct":
                 plt.axhline(y=rating, linestyle=":")
                 plt.text(y=rating, s=elo_id, c="white",
