@@ -5,6 +5,7 @@ import pygame
 import time
 import sys
 import traceback
+import utils
 from agents.eta_zero import EtaZero, EtaZeroVisualiser
 from agents.human import Human
 from agents.mcts_agent import MinimaxMCTS
@@ -12,7 +13,7 @@ from agents.network_agent import RawNetwork
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
 from ios_screen_capture import screen_parser
-from networks.dgl_value_win_network import DGLValueWinNetwork
+from networks.graph_networks import DGLValueWinNetwork, PolicyValRGCN
 from networks.dummy_networks import DummyPVNetwork
 from renderer import Renderer
 from sevn import Board, Game, Score, State
@@ -84,50 +85,21 @@ class Animations:
         return len(self.tiles) == 0
 
 
-tile_colors = Renderer.default_colors
 default_back_col = (95, 46, 95), (226, 171, 152)
-top_col, bot_col = default_back_col
+user_input = UserInput()
 
-"""
-This file instantiates two agents and plays them against each other.
-It is responsible for rendering the game visuals and asking agents for their moves.
-"""
-if __name__ == "__main__":
-    base = 7
 
-    """ Random game state
-    game = Game(base)#.from_str("1/c-d-d-b-d-df/7.7.7.2a4.7.7.7")
-    """
+def play_game(
+        game,
+        player1,
+        player2,
+        tile_colors=Renderer.default_colors,
+        top_col=default_back_col[0],
+        bot_col=default_back_col[1]):
 
-    """ Game state from a board
-    game = Game(
-        base,
-        State(
-            Board(base, simple_plotter.get_board()),
-            Score(base),
-            1
-        )
-    ) """
-
-    """ Game state from string representation
-    game = Game.from_str("1/aaa/acb.bca.cba")
-    """
-
-    """ Game state from iOS App Sevn
-    state, default_colors = screen_parser.get_starting_state()
-    game = Game(state=state)
-    """
-
-    # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
-    game = Game(base)  # state=state)
-
-    user_input = UserInput()
+    base = game.base
 
     game.reset_search_game()
-    player2 = RawNetwork(torch.load(
-        "models\\DGLValueWinNetwork-11-2021-01-08-19-34-00.pt"))
-    player1 = Human(user_input)  # UCTAgent(max_evals_per_turn=6000)
-
     player1.set_game(game.search_game)
     player2.set_game(game.search_game)
 
@@ -188,13 +160,16 @@ if __name__ == "__main__":
                 if event.key == pygame.K_SPACE:
                     user_input.signal.set()
                 if event.key == pygame.K_v:
-                    if game.over():
-                        if isinstance(player1, EtaZero):
-                            EtaZeroVisualiser(player1, state_list)
-                            done = True
-                        elif isinstance(player2, EtaZero):
-                            EtaZeroVisualiser(player2, state_list)
-                            done = True
+                    # if game.over():
+                    eta = None
+                    if isinstance(player1, EtaZero):
+                        eta = player1
+                    elif isinstance(player2, EtaZero):
+                        eta = player2
+
+                    if eta is not None:
+                        EtaZeroVisualiser(eta, state_list)
+                        done = True
 
         # ------------------------------------ Move making ------------------------------------
         if animations.done() and game.state.outcome == 0 and agent_future.done():
@@ -378,3 +353,46 @@ if __name__ == "__main__":
     user_input.terminate = True
     user_input.signal.set()
     agent_future.cancel()
+
+
+if __name__ == "__main__":
+    """ Random game state
+    game = Game(base)
+    """
+
+    """ Game state from a board
+    game = Game(
+        base,
+        State(
+            Board(base, simple_plotter.get_board()),
+            Score(base),
+            1
+        )
+    ) """
+
+    """ Game state from string representation
+    game = Game.from_str("1/aaa/acb.bca.cba")
+    """
+
+    """ Game state from iOS App Sevn
+    state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
+    game = Game(state=state)
+    """
+
+    # net = utils.load_net(56)
+
+    # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
+    game = Game(5)#state=state)
+
+    player2 = EtaZero(utils.load_net(70, section="Attempt7"), samples_per_move=100)
+    # # player2 = Human(user_input)
+    # player1 = Human(user_input)  # UCTAgent(5000)
+
+    player1 = Human(user_input)#UCTAgent(1000)
+    # player2 = Human(user_input)#UCTAgentOld(200)
+    
+    play_game(
+        game,
+        player1,
+        player2
+    )

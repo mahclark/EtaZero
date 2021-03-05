@@ -142,6 +142,7 @@ class PolicyValRGCN(RGCNet, PolicyValueNetwork):
     def evaluate(self, state):
         g = state.to_dgl_graph(with_move_nodes=True)
         result = self.forward(g).detach()
+        # print(result.sort()[0].tolist())
 
         policy = result[:len(state.get_moves())]
         value = result[-1]

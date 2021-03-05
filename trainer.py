@@ -5,10 +5,11 @@ import numpy as np
 import os
 import torch
 import utils
-from agent_evaluation.arena import Arena
+# from agent_evaluation.arena import Arena
 from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
+from arena import Arena 
 from math import ceil
 from networks.graph_networks import DGLValueWinNetwork
 from networks.network import PolicyValueNetwork
@@ -49,9 +50,10 @@ class Trainer:
 
         eta_zero_id = EtaZero(self.model, training=True,
                               samples_per_move=samples_per_move).elo_id
+        file_name = f"{eta_zero_id}.csv"
         data_path = os.path.join(
             self.training_data_path,
-            f"{eta_zero_id}.csv"
+            file_name
         )
         print(f"Saving data at:\n{data_path}")
 
@@ -115,7 +117,7 @@ class Trainer:
 
         print()
 
-        return data, labels
+        return self._data_loader(file_name)
 
     def _data_loader(self, data_file):
         with open(os.path.join(self.training_data_path, data_file)) as training_data:
@@ -144,7 +146,7 @@ class Trainer:
         p, v = output[:-1], output[-1]
         p_lab, v_lab = label[:-1], label[-1]
 
-        p_loss = 1 - torch.sum(p * p_lab)
+        p_loss = -torch.sum(p_lab * torch.log(p + 1e-7))
         v_loss = (v - v_lab)**2
 
         return v_loss + p_loss
@@ -260,13 +262,13 @@ class Trainer:
 
             self.model.iterate_id()
 
-            if isinstance(self.model, PolicyValueNetwork):
-                loss_fn = self.pv_loss
-            else:
-                loss_fn = nn.MSELoss(reduction='sum')
+            # if isinstance(self.model, PolicyValueNetwork):
+            #     loss_fn = self.pv_loss
+            # else:
+            #     loss_fn = nn.MSELoss(reduction='sum')
 
             self.train(all_data, n_epochs=n_epochs, lr=lr,
-                       batch_size=batch_size, l2norm=l2norm, loss_fn=loss_fn)
+                       batch_size=batch_size, l2norm=l2norm)#, loss_fn=loss_fn)
 
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
