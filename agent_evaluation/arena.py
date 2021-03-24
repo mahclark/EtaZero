@@ -409,7 +409,7 @@ class Arena:
 
         for series, (x, y) in series_ratings.items():
             x, y = zip(*sorted(zip(x, y)))
-            plt.plot(x, y, label=series.label)
+            plt.plot(x, y, label=series.label, zorder=1000)
 
         plt.plot([0, max(series_ratings[EtaZero.Series(50)][0])], [
                  best[0], best[0]], label=f"Iter {best[1]}: {best[0]}")
