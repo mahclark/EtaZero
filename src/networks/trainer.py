@@ -35,7 +35,8 @@ class Trainer:
 
         self.training_data_path = os.path.join(
             base_path,
-            "training_data",
+            "data",
+            "training",
             self.section
         )
 
@@ -312,7 +313,7 @@ class Trainer:
 
 
 def get_win_data():
-    path = "uct_win_data/data.csv"
+    path = os.path.join("data","uct_win","data.csv")
     with open(path) as data_file:
         reader = csv.reader(data_file)
 

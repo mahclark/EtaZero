@@ -90,6 +90,7 @@ class Arena:
         self.base_path = base_path
         self.elo_rating_path = os.path.join(
             base_path,
+            "data",
             "elo",
             section,
             "ratings.json"

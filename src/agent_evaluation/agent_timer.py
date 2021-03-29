@@ -15,7 +15,8 @@ class AgentTimer:
     def __init__(self, base_path="", section=""):
         self.timing_data_path = os.path.join(
             base_path,
-            "timing_data",
+            "data",
+            "timing",
             section,
             "times.csv"
         )
