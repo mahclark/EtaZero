@@ -382,9 +382,9 @@ if __name__ == "__main__":
     # net = utils.load_net(56)
 
     # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
-    game = Game(5)#state=state)
+    game = Game.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
 
-    player2 = EtaZero(utils.load_net(70, section="Attempt7"), samples_per_move=100)
+    player2 = EtaZero(utils.load_net(max(utils.get_model_files(section="Attempt7")), section="Attempt7"), samples_per_move=2000)
     # # player2 = Human(user_input)
     # player1 = Human(user_input)  # UCTAgent(5000)
 
