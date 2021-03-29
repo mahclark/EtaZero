@@ -278,6 +278,7 @@ class Trainer:
     def get_save_path(self):
         return os.path.join(
             self.base_path,
+            "data",
             "models",
             self.section,
             self.model.elo_id + ".pt"
