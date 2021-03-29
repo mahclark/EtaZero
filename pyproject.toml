@@ -24,5 +24,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-main = "scripts:main"
+play = "scripts:play"
+train = "scripts:train"
 arena = "scripts:arena"
+timer = "scripts:timer"
