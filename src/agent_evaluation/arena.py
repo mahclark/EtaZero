@@ -184,7 +184,7 @@ class Arena:
                             enemy.elo_id, GameStats(0, 0)).games
                     else:
                         games_played = total_played
-                    
+
                     if games_played < task.game_pairs*2:
                         no_tasks = False
                         self.battle(agent, enemy, min(10, task.game_pairs -
@@ -486,3 +486,8 @@ class LockParser:
             self.file.truncate()
 
         self.file.close()
+
+
+if __name__ == "__main__":
+    arena = Arena(section="Attempt7", saving_enabled=False)
+    arena.plot_all()

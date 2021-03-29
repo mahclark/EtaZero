@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "etazero"
+version = "0.1.0"
+description = ""
+authors = ["mahclark <mc2124@cam.ac.uk>"]
+packages = [
+    { include = "src" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+dgl = "^0.6.0"
+torch = "^1.8.1"
+numpy = "^1.20.2"
+pygame = "^2.0.1"
+matplotlib = "^3.0.2"
+portalocker = "^2.3.0"
+tqdm = "^4.59.0"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+main = "scripts:main"
+arena = "scripts:arena"
