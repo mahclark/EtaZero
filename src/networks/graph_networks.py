@@ -4,9 +4,8 @@ import torch.nn.functional as F
 import dgl
 import dgl.function as fn
 from functools import partial
+from game.sevn import State
 from networks.network import Network, PolicyValueNetwork, ValueWinNetwork
-
-from sevn import State
 
 
 class RGCNLayer(nn.Module):
@@ -137,7 +136,7 @@ class PolicyValRGCN(RGCNet, PolicyValueNetwork):
     def aggregate(self, g):
         h_data = g.ndata.pop('h')
 
-        return torch.cat((h_data[:,0], torch.mean(h_data[:,1]).unsqueeze(0)))
+        return torch.cat((h_data[:, 0], torch.mean(h_data[:, 1]).unsqueeze(0)))
 
     def evaluate(self, state):
         g = state.to_dgl_graph(with_move_nodes=True)

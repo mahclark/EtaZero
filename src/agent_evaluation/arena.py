@@ -14,8 +14,8 @@ from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
 from functools import lru_cache
+from game.sevn import Game, State
 from math import ceil
-from sevn import Game, State
 from typing import NamedTuple
 
 
@@ -363,6 +363,7 @@ class Arena:
 
     def plot_all(self):
         self._save()
+        plt.style.use("seaborn")
         plt.figure(figsize=(13, 10), facecolor="w")
 
         ratings, _ = LockParser.read(self.elo_rating_path)
@@ -385,9 +386,10 @@ class Arena:
 
             # UCT lines and white boxes
             if split_id[0] == "uct":
+                facecol = plt.gca().get_facecolor()
                 plt.axhline(y=rating, linestyle=":")
                 plt.text(y=rating, s=elo_id, c="white",
-                         **uct_label_args, bbox=dict(fc="white", ec="white"))
+                         **uct_label_args, bbox=dict(fc=facecol, ec=facecol))
 
             elif split_id[0] == "EtaZero":
                 iteration = int(split_id[3])

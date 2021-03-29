@@ -6,8 +6,8 @@ import utils
 from agents.eta_zero import EtaZero
 from agents.uct_agent import UCTAgent
 from collections import OrderedDict
+from game.sevn import Game
 from math import ceil
-from sevn import Game
 
 
 class AgentTimer:
@@ -96,10 +96,11 @@ class AgentTimer:
 
             return num_games
 
-from sevn import State
-import numpy as np
 
 if __name__ == "__main__":
+    import numpy as np
+    from game.sevn import State
+
     timer = AgentTimer()
     # timer.time(
     #     EtaZero(utils.load_net(4), samples_per_move=100),
@@ -118,15 +119,17 @@ if __name__ == "__main__":
     # plt.legend(bbox_to_anchor=(0.05, 1))
     # plt.show()
 
-    s = State.from_str("1/-b-cbgda-g/7.7.7.1eegf2.4d2.4b2.7")
+    s = State.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
+
+    plt.style.use("seaborn")
 
     ps = []
     vs = []
-    for i in range(63):
-        p,v = utils.load_net(i).evaluate(s)
+    for i in range(max(utils.get_model_files(section="Attempt7"))):
+        p, v = utils.load_net(i, section="Attempt7").evaluate(s)
         ps.append(p.tolist())
         vs.append(v.tolist())
-    
+
     plt.plot(vs, label="Value")
 
     for p, move in zip(np.array(ps).T, s.get_moves()):

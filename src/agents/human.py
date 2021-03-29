@@ -1,5 +1,5 @@
 from agents.agent import Agent
-from sevn import Move
+from game.sevn import Move
 
 
 class Human(Agent):

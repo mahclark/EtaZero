@@ -5,15 +5,14 @@ import numpy as np
 import os
 import torch
 import utils
-# from agent_evaluation.arena import Arena
+from agent_evaluation.arena import Arena
 from agents.eta_zero import EtaZero
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
-from arena import Arena 
+from game.sevn import Game, State
 from math import ceil
 from networks.graph_networks import DGLValueWinNetwork
 from networks.network import PolicyValueNetwork
-from sevn import Game, State
 from torch import nn
 
 
@@ -268,7 +267,7 @@ class Trainer:
             #     loss_fn = nn.MSELoss(reduction='sum')
 
             self.train(all_data, n_epochs=n_epochs, lr=lr,
-                       batch_size=batch_size, l2norm=l2norm)#, loss_fn=loss_fn)
+                       batch_size=batch_size, l2norm=l2norm)  # , loss_fn=loss_fn)
 
             print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 

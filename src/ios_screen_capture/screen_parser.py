@@ -2,10 +2,10 @@ import colorsys
 import win32gui
 import win32ui
 from ctypes import windll
+from game.sevn import Game, State, Board, Score
 from math import sqrt
 from PIL import Image
 from queue import PriorityQueue
-from sevn import Game, State, Board, Score
 
 
 def get_lonely_screen_id():

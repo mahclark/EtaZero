@@ -4,12 +4,12 @@ import time
 import torch
 from agents.agent import Agent, Series
 from collections import deque, namedtuple
+from game.renderer import Renderer
+from game.sevn import Game, State
 from math import sqrt
 from networks.graph_networks import DGLValueWinNetwork
 from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
 from networks.network import PolicyValueNetwork, ValueWinNetwork
-from renderer import Renderer
-from sevn import Game, State
 from threading import Thread
 from tqdm import tqdm
 from utils import get_model_files,  load_net

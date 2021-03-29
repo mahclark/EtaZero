@@ -12,11 +12,12 @@ from agents.mcts_agent import MinimaxMCTS
 from agents.network_agent import RawNetwork
 from agents.random_agent import RandomAgent
 from agents.uct_agent import UCTAgent
+from game.renderer import Renderer
+from game.sevn import Board, Game, Score, State
 from ios_screen_capture import screen_parser
 from networks.graph_networks import DGLValueWinNetwork, PolicyValRGCN
 from networks.dummy_networks import DummyPVNetwork
-from renderer import Renderer
-from sevn import Board, Game, Score, State
+
 
 # from screen_parsing import simple_plotter
 
@@ -384,13 +385,14 @@ if __name__ == "__main__":
     # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
     game = Game.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
 
-    player2 = EtaZero(utils.load_net(max(utils.get_model_files(section="Attempt7")), section="Attempt7"), samples_per_move=2000)
+    player2 = EtaZero(utils.load_net(max(utils.get_model_files(
+        section="Attempt7")), section="Attempt7"), samples_per_move=2000)
     # # player2 = Human(user_input)
     # player1 = Human(user_input)  # UCTAgent(5000)
 
-    player1 = Human(user_input)#UCTAgent(1000)
+    player1 = Human(user_input)  # UCTAgent(1000)
     # player2 = Human(user_input)#UCTAgentOld(200)
-    
+
     play_game(
         game,
         player1,
