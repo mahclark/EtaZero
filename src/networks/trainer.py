@@ -141,6 +141,43 @@ class Trainer:
 
             return data, labels
 
+    def count_games(self):
+        """
+        Counts the number of saved self-play games of the current network.
+        Assumes the current network has the most recent entries in game_data.csv
+        Returns 0 otherwise.
+        """
+
+        def read_elo_ids_reversed():
+            with open(os.path.join(self.training_data_path, "game_data.csv")) as game_data:
+
+                game_data.seek(0, os.SEEK_END)
+                fp = game_data.tell()
+
+                buffer = []
+                while fp >= 0:
+                    game_data.seek(fp)
+                    fp -= 1
+
+                    new_byte = game_data.read(1)
+                    if new_byte == "\n":
+                        line = "".join(buffer[::-1])
+                        if line != "":
+                            yield line.split(",")[1]
+                        buffer = []
+                    else:
+                        buffer.append(new_byte)
+
+                line = "".join(buffer[::-1])
+                if line != "":
+                    yield line.split(",")[1]
+
+        for count, elo_id in enumerate(read_elo_ids_reversed()):
+            if "-".join(elo_id.split("-")[2:]) != self.model.elo_id:
+                break
+
+        return count
+
     @staticmethod
     def pv_loss(output, label):
         p, v = output[:-1], output[-1]
@@ -314,7 +351,7 @@ class Trainer:
 
 
 def get_win_data():
-    path = os.path.join("data","uct_win","data.csv")
+    path = os.path.join("data", "uct_win", "data.csv")
     with open(path) as data_file:
         reader = csv.reader(data_file)
 
@@ -356,11 +393,6 @@ def get_win_data():
 
 if __name__ == "__main__":
 
-    model = DGLValueWinNetwork(dims=[3, 64, 64, 32, 32, 16, 8, 2])
-    # , load_path="models/2020-12-18-23-06-15.pt")
-    # trainer = Trainer(model=model)
-
-    # trainer.eta_training_loop(1, samples_per_move=5, game_base=5, num_games=20)
-
-    # trainer._default_data_generator(
-    #     num_games=1, game_base=7, samples_per_move=5)
+    trainer = Trainer(utils.load_net(
+        111, section="Attempt7"), section="Attempt7")
+    print(trainer.count_games())
