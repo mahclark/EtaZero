@@ -123,7 +123,28 @@
       "EtaZero-50-PolicyValRGCN-108-2021-03-22-19-37-20": 1621.0,
       "EtaZero-50-PolicyValRGCN-109-2021-03-23-10-29-39": 1602.0,
       "EtaZero-50-PolicyValRGCN-110-2021-03-23-20-09-29": 1645.6,
-      "EtaZero-50-PolicyValRGCN-111-2021-03-24-05-31-30": 1643.0
+      "EtaZero-50-PolicyValRGCN-111-2021-03-24-05-31-30": 1643.0,
+      "EtaZero-50-PolicyValRGCN-112-2021-03-25-07-08-27": 1633.5,
+      "EtaZero-50-PolicyValRGCN-113-2021-03-25-20-31-08": 1650.6,
+      "EtaZero-50-PolicyValRGCN-114-2021-03-26-07-31-12": 1727.8,
+      "EtaZero-50-PolicyValRGCN-115-2021-03-26-21-25-25": 1675.8,
+      "EtaZero-50-PolicyValRGCN-116-2021-03-27-13-21-46": 1699.1,
+      "EtaZero-50-PolicyValRGCN-117-2021-03-28-02-26-37": 1622.6,
+      "EtaZero-50-PolicyValRGCN-118-2021-03-28-18-36-55": 1573.9,
+      "EtaZero-50-PolicyValRGCN-119-2021-03-29-06-33-43": 1579.4,
+      "EtaZero-50-PolicyValRGCN-120-2021-03-30-01-13-08": 1615.4,
+      "EtaZero-50-PolicyValRGCN-121-2021-03-30-17-58-05": 1596.1,
+      "EtaZero-50-PolicyValRGCN-122-2021-03-31-14-04-24": 1631.3,
+      "EtaZero-50-PolicyValRGCN-123-2021-04-01-11-38-38": 1592.1,
+      "EtaZero-50-PolicyValRGCN-124-2021-04-01-21-43-02": 1643.5,
+      "EtaZero-50-PolicyValRGCN-125-2021-04-02-13-24-17": 1623.1,
+      "EtaZero-50-PolicyValRGCN-126-2021-04-03-22-13-09": 1702.1,
+      "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": 1717.5,
+      "EtaZero-50-PolicyValRGCN-128-2021-04-06-23-41-46": 1617.6,
+      "EtaZero-50-PolicyValRGCN-129-2021-04-07-14-26-48": 1520.0,
+      "EtaZero-50-PolicyValRGCN-130-2021-04-08-04-13-21": 1599.9,
+      "EtaZero-50-PolicyValRGCN-131-2021-04-09-01-50-45": 1575.8,
+      "EtaZero-50-PolicyValRGCN-132-2021-04-09-21-33-58": 1259.6
    },
    "history": {
       "uct-5": {
@@ -1012,6 +1033,130 @@
          "uct-2000": [33, 40],
          "uct-10000": [29, 40],
          "EtaZero-50-PolicyValRGCN-110-2021-03-23-20-09-29": [17, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-112-2021-03-25-07-08-27": {
+         "EtaZero-50-PolicyValRGCN-111-2021-03-24-05-31-30": [12, 40],
+         "EtaZero-50-PolicyValRGCN-102-2021-03-18-19-17-24": [26, 40],
+         "uct-1000": [36, 40],
+         "uct-10000": [31, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-113-2021-03-25-20-31-08": {
+         "EtaZero-50-PolicyValRGCN-112-2021-03-25-07-08-27": [24, 40],
+         "EtaZero-50-PolicyValRGCN-103-2021-03-19-05-00-41": [17, 40],
+         "uct-2000": [34, 40],
+         "uct-10000": [31, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-114-2021-03-26-07-31-12": {
+         "EtaZero-50-PolicyValRGCN-113-2021-03-25-20-31-08": [22, 40],
+         "EtaZero-50-PolicyValRGCN-104-2021-03-19-18-30-40": [21, 40],
+         "uct-2000": [38, 40],
+         "uct-10000": [32, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-115-2021-03-26-21-25-25": {
+         "EtaZero-50-PolicyValRGCN-114-2021-03-26-07-31-12": [19, 40],
+         "EtaZero-50-PolicyValRGCN-105-2021-03-20-19-03-37": [22, 40],
+         "uct-2000": [33, 40],
+         "uct-10000": [29, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-116-2021-03-27-13-21-46": {
+         "EtaZero-50-PolicyValRGCN-106-2021-03-21-17-43-48": [26, 40],
+         "uct-2000": [32, 40],
+         "uct-10000": [25, 40],
+         "EtaZero-50-PolicyValRGCN-115-2021-03-26-21-25-25": [26, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-117-2021-03-28-02-26-37": {
+         "EtaZero-50-PolicyValRGCN-116-2021-03-27-13-21-46": [19, 40],
+         "EtaZero-50-PolicyValRGCN-107-2021-03-22-05-18-28": [21, 40],
+         "uct-2000": [30, 40],
+         "uct-10000": [29, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-118-2021-03-28-18-36-55": {
+         "EtaZero-50-PolicyValRGCN-108-2021-03-22-19-37-20": [22, 40],
+         "uct-2000": [30, 40],
+         "uct-10000": [18, 40],
+         "EtaZero-50-PolicyValRGCN-117-2021-03-28-02-26-37": [20, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-119-2021-03-29-06-33-43": {
+         "EtaZero-50-PolicyValRGCN-118-2021-03-28-18-36-55": [21, 40],
+         "EtaZero-50-PolicyValRGCN-109-2021-03-23-10-29-39": [19, 40],
+         "uct-1000": [36, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-120-2021-03-30-01-13-08": {
+         "EtaZero-50-PolicyValRGCN-119-2021-03-29-06-33-43": [21, 40],
+         "EtaZero-50-PolicyValRGCN-110-2021-03-23-20-09-29": [20, 40],
+         "uct-2000": [33, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-121-2021-03-30-17-58-05": {
+         "EtaZero-50-PolicyValRGCN-120-2021-03-30-01-13-08": [20, 40],
+         "EtaZero-50-PolicyValRGCN-111-2021-03-24-05-31-30": [16, 40],
+         "uct-1000": [37, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-122-2021-03-31-14-04-24": {
+         "EtaZero-50-PolicyValRGCN-121-2021-03-30-17-58-05": [23, 40],
+         "EtaZero-50-PolicyValRGCN-112-2021-03-25-07-08-27": [24, 40],
+         "uct-2000": [32, 40],
+         "uct-10000": [24, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-123-2021-04-01-11-38-38": {
+         "EtaZero-50-PolicyValRGCN-122-2021-03-31-14-04-24": [16, 40],
+         "EtaZero-50-PolicyValRGCN-113-2021-03-25-20-31-08": [17, 40],
+         "uct-2000": [32, 40],
+         "uct-10000": [26, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-124-2021-04-01-21-43-02": {
+         "EtaZero-50-PolicyValRGCN-123-2021-04-01-11-38-38": [20, 40],
+         "EtaZero-50-PolicyValRGCN-114-2021-03-26-07-31-12": [22, 40],
+         "uct-2000": [33, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-125-2021-04-02-13-24-17": {
+         "EtaZero-50-PolicyValRGCN-115-2021-03-26-21-25-25": [22, 40],
+         "uct-2000": [32, 40],
+         "uct-10000": [25, 40],
+         "EtaZero-50-PolicyValRGCN-124-2021-04-01-21-43-02": [17, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-126-2021-04-03-22-13-09": {
+         "EtaZero-50-PolicyValRGCN-125-2021-04-02-13-24-17": [23, 40],
+         "EtaZero-50-PolicyValRGCN-116-2021-03-27-13-21-46": [20, 40],
+         "uct-2000": [36, 40],
+         "uct-10000": [30, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": {
+         "EtaZero-50-PolicyValRGCN-126-2021-04-03-22-13-09": [22, 40],
+         "EtaZero-50-PolicyValRGCN-117-2021-03-28-02-26-37": [23, 40],
+         "uct-2000": [36, 40],
+         "uct-10000": [31, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-128-2021-04-06-23-41-46": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [22, 40],
+         "EtaZero-50-PolicyValRGCN-118-2021-03-28-18-36-55": [17, 40],
+         "uct-1000": [37, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-129-2021-04-07-14-26-48": {
+         "EtaZero-50-PolicyValRGCN-128-2021-04-06-23-41-46": [14, 40],
+         "EtaZero-50-PolicyValRGCN-119-2021-03-29-06-33-43": [18, 40],
+         "uct-1000": [34, 40],
+         "uct-10000": [23, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-130-2021-04-08-04-13-21": {
+         "EtaZero-50-PolicyValRGCN-129-2021-04-07-14-26-48": [23, 40],
+         "EtaZero-50-PolicyValRGCN-120-2021-03-30-01-13-08": [24, 40],
+         "uct-1000": [34, 40],
+         "uct-10000": [29, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-131-2021-04-09-01-50-45": {
+         "EtaZero-50-PolicyValRGCN-130-2021-04-08-04-13-21": [19, 40],
+         "EtaZero-50-PolicyValRGCN-121-2021-03-30-17-58-05": [19, 40],
+         "uct-1000": [36, 40],
+         "uct-10000": [25, 40]
+      },
+      "EtaZero-50-PolicyValRGCN-132-2021-04-09-21-33-58": {
+         "EtaZero-50-PolicyValRGCN-131-2021-04-09-01-50-45": [2, 20],
+         "EtaZero-50-PolicyValRGCN-122-2021-03-31-14-04-24": [2, 10]
       }
    }
 }
