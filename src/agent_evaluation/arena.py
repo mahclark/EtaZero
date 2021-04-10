@@ -299,7 +299,7 @@ class Arena:
 
     def _save(self, agent=None, enemy=None, wins=None, games=None):
         if not self.saving_enabled:
-            return
+            return None, None
 
         with LockParser(self.elo_rating_path) as (f, ratings, history):
 
@@ -341,8 +341,12 @@ class Arena:
             total_games = 0
             sum_elo = 0
             for rating, (wins, games) in [(get_rating(eid), hist) for eid, hist in history.get(elo_id, {}).items()]:
-                if rating is None or 0 in [wins, games]:
+                if rating is None or games == 0:
                     continue
+
+                if wins == 0:
+                    games += 1
+                    wins += 1
 
                 elo = rating - 400*math.log(games/wins - 1)/math.log(10)
 
@@ -416,6 +420,9 @@ class Arena:
 
         plt.plot([0, max(series_ratings[EtaZero.Series(50)][0])], [
                  best[0], best[0]], label=f"Iter {best[1]}: {best[0]}")
+        
+        for i, other_id in enumerate(["max", "prodigy-bot"]):
+            plt.axhline(y=ratings[other_id], label=f"{other_id}: {ratings[other_id]}", color=f"C{i+2}")
 
         plt.ylabel("Elo Rating")
         plt.xlabel("Training Iteration")
@@ -482,6 +489,7 @@ class LockParser:
             history
         )
 
+
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if exc_type is not None:
             self.file.seek(0)
@@ -492,5 +500,12 @@ class LockParser:
 
 
 if __name__ == "__main__":
-    arena = Arena(section="Attempt7", saving_enabled=False)
+    from agents.network_agent import RawNetwork
+    arena = Arena(section="Attempt7")#, saving_enabled=False)
     arena.plot_all()
+
+    # arena.battle(
+    #     EtaZero(utils.load_net(127, section="Attempt7"), samples_per_move=50),
+    #     EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50),
+    #     200//2
+    # )
