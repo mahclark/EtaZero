@@ -190,8 +190,6 @@ if __name__ == "__main__":
     from game.sevn import State
 
     timer = AgentTimer()
-    timer.csv_to_json(
-        "E:\Max Clark\Documents\cst-II\EtaZero\src\data\\timing\Attempt3\\times_pc.csv")
 
     # print(timer.get_info())
 
@@ -200,21 +198,3 @@ if __name__ == "__main__":
 
     plt.legend(bbox_to_anchor=(0.05, 1))
     plt.show()
-
-    # s = State.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
-
-    # plt.style.use("seaborn")
-
-    # ps = []
-    # vs = []
-    # for i in range(max(utils.get_model_files(section="Attempt7"))):
-    #     p, v = utils.load_net(i, section="Attempt7").evaluate(s)
-    #     ps.append(p.tolist())
-    #     vs.append(v.tolist())
-
-    # plt.plot(vs, label="Value")
-
-    # for p, move in zip(np.array(ps).T, s.get_moves()):
-    #     plt.plot(p, label=str(move))
-    # plt.legend(bbox_to_anchor=(1.05, 1))
-    # plt.show()

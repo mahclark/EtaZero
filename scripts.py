@@ -15,3 +15,7 @@ def arena():
 
 def timer():
     check_call(["python", "-m", "agent_evaluation.agent_timer"], cwd="src")
+
+
+def test():
+    check_call(["python", "-m", "agent_evaluation.network_tester"], cwd="src")
