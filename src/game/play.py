@@ -38,7 +38,8 @@ class ThreadPoolExecutorTimedStackTraced(ThreadPoolExecutor):
         self.start_time = time.time()
 
         return super(ThreadPoolExecutorTimedStackTraced, self).submit(
-            self._function_wrapper, fn, *args, **kwargs)
+            self._function_wrapper, fn, *args, **kwargs
+        )
 
     def _function_wrapper(self, fn, *args, **kwargs):
         """
@@ -91,12 +92,13 @@ user_input = UserInput()
 
 
 def play_game(
-        game,
-        player1,
-        player2,
-        tile_colors=Renderer.default_colors,
-        top_col=default_back_col[0],
-        bot_col=default_back_col[1]):
+    game,
+    player1,
+    player2,
+    tile_colors=Renderer.default_colors,
+    top_col=default_back_col[0],
+    bot_col=default_back_col[1],
+):
 
     base = game.base
 
@@ -105,15 +107,16 @@ def play_game(
     player2.set_game(game.search_game)
 
     name_width = max(len(player1.name), len(player2.name)) + 4
-    result_width = 3 + 2*base + base**2
+    result_width = 3 + 2 * base + base ** 2
 
     def pprint_row(name, time, confidence, playouts, result):
         print(
-            f"{' '+name:<{name_width}}{time:<10}{confidence:<11}{playouts:<11}{result}")
+            f"{' '+name:<{name_width}}{time:<10}{confidence:<11}{playouts:<11}{result}"
+        )
 
     pprint_row("Name", "Time", "Confidence", "Playouts", "Result")
-    print("-"*(name_width + 32 + result_width))
-    print(" "*(name_width + 32) + str(game.state))
+    print("-" * (name_width + 32 + result_width))
+    print(" " * (name_width + 32) + str(game.state))
 
     next_player = player1 if game.state.next_go == 1 else player2
 
@@ -146,16 +149,14 @@ def play_game(
             if event.type == pygame.VIDEORESIZE:
                 x_size = max(600, event.w)
                 y_size = max(600, event.h)
-                screen = pygame.display.set_mode(
-                    (x_size, y_size), pygame.RESIZABLE)
+                screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
 
             if event.type == pygame.MOUSEBUTTONUP:
                 if board_surf:
                     pos = screen_to_board(mx, my)
-                    tile_size = board_surf.get_size()[0]//base
-                    tile = (int(pos[1]/tile_size), int(pos[0]/tile_size))
-                    user_input.selected[tile] = not user_input.selected.get(
-                        tile, False)
+                    tile_size = board_surf.get_size()[0] // base
+                    tile = (int(pos[1] / tile_size), int(pos[0] / tile_size))
+                    user_input.selected[tile] = not user_input.selected.get(tile, False)
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_SPACE:
@@ -184,17 +185,23 @@ def play_game(
             game.reset_search_game()
             state_list.append(game.state)
 
-            confidence_str = " " * \
-                11 if not next_player.confidence else f"{next_player.confidence+'  ':>11}"
-            playouts_str = " " * \
-                11 if not next_player.playouts_played else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
+            confidence_str = (
+                " " * 11
+                if not next_player.confidence
+                else f"{next_player.confidence+'  ':>11}"
+            )
+            playouts_str = (
+                " " * 11
+                if not next_player.playouts_played
+                else f"{str(next_player.playouts_played)+'/'+str(len(game.get_moves()))+'  ':>11}"
+            )
 
             pprint_row(
                 name=next_player.name,
                 time=f"{'%.2f'%time_taken+'s '}",
                 confidence=confidence_str,
                 playouts=playouts_str,
-                result=str(game.state)
+                result=str(game.state),
             )
 
             next_player = player1 if game.state.next_go == 1 else player2
@@ -210,39 +217,43 @@ def play_game(
 
         margin_size = 20
 
-        score_width = min(int(2.5*y_size/3), x_size - 2*margin_size)
+        score_width = min(int(2.5 * y_size / 3), x_size - 2 * margin_size)
 
-        grid_width = int(score_width*0.6) - \
-            int(score_width*0.6) % (2*base + 1) + 1
-        cell_size = int((grid_width - 1)/(2*base + 1))
-        grid_height = int(base*cell_size + 1)
+        grid_width = (
+            int(score_width * 0.6) - int(score_width * 0.6) % (2 * base + 1) + 1
+        )
+        cell_size = int((grid_width - 1) / (2 * base + 1))
+        grid_height = int(base * cell_size + 1)
 
         score_height = int(grid_height + 50)
-        board_size = min(y_size - score_height - 3 *
-                         margin_size, x_size - 2*margin_size)
+        board_size = min(
+            y_size - score_height - 3 * margin_size, x_size - 2 * margin_size
+        )
 
-        score_surf = pygame.Surface(
-            (score_width, score_height), pygame.SRCALPHA, 32)
-        board_surf = pygame.Surface(
-            (board_size, board_size), pygame.SRCALPHA, 32)
+        score_surf = pygame.Surface((score_width, score_height), pygame.SRCALPHA, 32)
+        board_surf = pygame.Surface((board_size, board_size), pygame.SRCALPHA, 32)
 
         def board_to_screen(x, y):
-            return (x + int((x_size - board_size)/2), y + margin_size*2 + score_height)
+            return (
+                x + int((x_size - board_size) / 2),
+                y + margin_size * 2 + score_height,
+            )
 
         def screen_to_board(x, y):
-            return (x - int((x_size - board_size)/2), y - margin_size*2 - score_height)
+            return (
+                x - int((x_size - board_size) / 2),
+                y - margin_size * 2 - score_height,
+            )
 
         background = pygame.Surface((x_size, y_size))
         for y in range(y_size):
-            col_a, col_b = default_back_col if y + margin_size/2 - \
-                3 < board_to_screen(0, 0)[1] else (top_col, bot_col)
-            lerp_col = [a + (b-a)*y/y_size for a, b in zip(col_a, col_b)]
-            pygame.draw.line(
-                background,
-                lerp_col,
-                (0, y),
-                (x_size-1, y)
+            col_a, col_b = (
+                default_back_col
+                if y + margin_size / 2 - 3 < board_to_screen(0, 0)[1]
+                else (top_col, bot_col)
             )
+            lerp_col = [a + (b - a) * y / y_size for a, b in zip(col_a, col_b)]
+            pygame.draw.line(background, lerp_col, (0, y), (x_size - 1, y))
 
         screen.blit(background, (0, 0))
 
@@ -250,16 +261,20 @@ def play_game(
 
             winner = player1 if game.state.outcome == 1 else player2
 
-            win_label = big_font.render(
-                winner.name + " wins!", 1, [255, 255, 255])
+            win_label = big_font.render(winner.name + " wins!", 1, [255, 255, 255])
             win_label_rect = win_label.get_rect()
-            win_label_rect.center = (x_size/2, y_size/2)
+            win_label_rect.center = (x_size / 2, y_size / 2)
 
             screen.blit(win_label, win_label_rect)
         else:  # else draw the board
             animations.step()
-            Renderer.draw_board(board_surf, game.state.board,
-                                user_input.selected, animations.tiles, colors=tile_colors)
+            Renderer.draw_board(
+                board_surf,
+                game.state.board,
+                user_input.selected,
+                animations.tiles,
+                colors=tile_colors,
+            )
 
         # Draw the player name labels
         unselected_col = (196, 187, 173)
@@ -283,30 +298,65 @@ def play_game(
         progress = next_player.get_progress()
 
         if progress and next_player == player1:
-            pygame.draw.line(score_surf, unselected_col, (0, 30),
-                             (int((score_width - cell_size)/2), 30), 2)
-            pygame.draw.line(score_surf, selected_col, (0, 30),
-                             (int(progress*(score_width - cell_size)/2), 30), 2)
+            pygame.draw.line(
+                score_surf,
+                unselected_col,
+                (0, 30),
+                (int((score_width - cell_size) / 2), 30),
+                2,
+            )
+            pygame.draw.line(
+                score_surf,
+                selected_col,
+                (0, 30),
+                (int(progress * (score_width - cell_size) / 2), 30),
+                2,
+            )
         else:
-            pygame.draw.line(score_surf, p1_color, (0, 30),
-                             (int((score_width - cell_size)/2), 30), 2)
+            pygame.draw.line(
+                score_surf,
+                p1_color,
+                (0, 30),
+                (int((score_width - cell_size) / 2), 30),
+                2,
+            )
 
         if progress and next_player == player2:
-            pygame.draw.line(score_surf, unselected_col, (int(
-                (score_width + cell_size)/2), 30), (score_width, 30), 2)
-            pygame.draw.line(score_surf, selected_col, (int((score_width + cell_size)/2 + (
-                1-progress)*(score_width - cell_size)/2), 30), (score_width, 30), 2)
+            pygame.draw.line(
+                score_surf,
+                unselected_col,
+                (int((score_width + cell_size) / 2), 30),
+                (score_width, 30),
+                2,
+            )
+            pygame.draw.line(
+                score_surf,
+                selected_col,
+                (
+                    int(
+                        (score_width + cell_size) / 2
+                        + (1 - progress) * (score_width - cell_size) / 2
+                    ),
+                    30,
+                ),
+                (score_width, 30),
+                2,
+            )
         else:
-            pygame.draw.line(score_surf, p2_color, (int(
-                (score_width + cell_size)/2), 30), (score_width, 30), 2)
+            pygame.draw.line(
+                score_surf,
+                p2_color,
+                (int((score_width + cell_size) / 2), 30),
+                (score_width, 30),
+                2,
+            )
 
         # Draw the score grid
-        grid_surf = pygame.Surface(
-            (grid_width, grid_height), pygame.SRCALPHA, 32)
-        Renderer.draw_score_grid(
-            grid_surf, game.state.score, colors=tile_colors)
+        grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
+        Renderer.draw_score_grid(grid_surf, game.state.score, colors=tile_colors)
         score_surf.blit(
-            grid_surf, (int((score_width - grid_width)/2), score_height - grid_height))
+            grid_surf, (int((score_width - grid_width) / 2), score_height - grid_height)
+        )
 
         # Draw the score numbers
         p1_score, p2_score = game.state.score.get_score_pair()
@@ -318,8 +368,7 @@ def play_game(
         p1_score_label_rect.topleft = (0, score_height - grid_height)
 
         p2_score_label_rect = p2_score_label.get_rect()
-        p2_score_label_rect.topright = (
-            score_width, score_height - grid_height)
+        p2_score_label_rect.topright = (score_width, score_height - grid_height)
 
         score_surf.blit(p1_score_label, p1_score_label_rect)
         score_surf.blit(p2_score_label, p2_score_label_rect)
@@ -327,7 +376,8 @@ def play_game(
         # Draw the confidences
         if player1.confidence != None:
             confidence_label = small_font.render(
-                str(player1.confidence), 1, [255, 255, 255])
+                str(player1.confidence), 1, [255, 255, 255]
+            )
 
             confidence_label_rect = confidence_label.get_rect()
             confidence_label_rect.bottomleft = (0, score_height)
@@ -336,7 +386,8 @@ def play_game(
 
         if player2.confidence != None:
             confidence_label = small_font.render(
-                str(player2.confidence), 1, [255, 255, 255])
+                str(player2.confidence), 1, [255, 255, 255]
+            )
 
             confidence_label_rect = confidence_label.get_rect()
             confidence_label_rect.bottomright = (score_width, score_height)
@@ -344,7 +395,7 @@ def play_game(
             score_surf.blit(confidence_label, confidence_label_rect)
 
         # Blit the surfaces on the screen
-        screen.blit(score_surf, (int((x_size - score_width)/2), margin_size))
+        screen.blit(score_surf, (int((x_size - score_width) / 2), margin_size))
         screen.blit(board_surf, board_to_screen(0, 0))
 
         pygame.display.flip()
@@ -357,7 +408,7 @@ def play_game(
 
 
 if __name__ == "__main__":
-    """ Random game state
+    """Random game state
     game = Game(base)
     """
 
@@ -385,16 +436,16 @@ if __name__ == "__main__":
     # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
     game = Game.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
 
-    player2 = EtaZero(utils.load_net(max(utils.get_model_files(
-        section="Attempt7")), section="Attempt7"), samples_per_move=2000)
+    player2 = EtaZero(
+        utils.load_net(
+            max(utils.get_model_files(section="Attempt7")), section="Attempt7"
+        ),
+        samples_per_move=2000,
+    )
     # # player2 = Human(user_input)
     # player1 = Human(user_input)  # UCTAgent(5000)
 
     player1 = Human(user_input)  # UCTAgent(1000)
     # player2 = Human(user_input)#UCTAgentOld(200)
 
-    play_game(
-        game,
-        player1,
-        player2
-    )
+    play_game(game, player1, player2)

@@ -17,5 +17,8 @@ def timer():
     check_call(["python", "-m", "agent_evaluation.agent_timer"], cwd="src")
 
 
-def test():
+def testnet():
     check_call(["python", "-m", "agent_evaluation.network_tester"], cwd="src")
+
+def fmt():
+    check_call(["python", "-m", "black", "src"])

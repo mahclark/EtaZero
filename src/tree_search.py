@@ -1,4 +1,3 @@
-
 class TreeSearch:
     """
     A class for functions useful for tree search.
@@ -54,7 +53,7 @@ class TreeSearch:
         if self.game.state.outcome != 0:
             return (None, None)
 
-        best_score = -float('inf') * self.game.state.next_go
+        best_score = -float("inf") * self.game.state.next_go
         best_move = None
 
         moves = self.game.get_moves()
@@ -63,7 +62,7 @@ class TreeSearch:
         for n, move in enumerate(moves):
             self.game.make_move(move)
             score = get_score()
-            self.progress_layers[-1] = (n+1, len(moves))
+            self.progress_layers[-1] = (n + 1, len(moves))
 
             if self.game.state.next_go == -1:
                 if score > best_score:
@@ -99,7 +98,7 @@ class TreeSearch:
         progress = 0
         scale = 1
         for p, n in progress_layers:
-            progress += scale*p/n
-            scale *= 1/n
+            progress += scale * p / n
+            scale *= 1 / n
 
         return progress

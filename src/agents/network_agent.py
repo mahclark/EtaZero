@@ -13,9 +13,9 @@ class RawNetwork(Agent):
         self.network = network
         self.elo_id = f"Raw-{self.network.elo_id}"
 
-    def select_move(self):        
+    def select_move(self):
         policy, value = self.network.evaluate(self.game.state)
 
-        self.set_confidence((value + 1)/2)
+        self.set_confidence((value + 1) / 2)
 
         return self.game.get_moves()[torch.argmax(policy).tolist()]

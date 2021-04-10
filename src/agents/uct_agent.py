@@ -6,7 +6,6 @@ from tree_search import TreeSearch
 
 
 class UCTAgent(Agent):
-
     class Series(Series):
 
         label = "UCT"
@@ -17,10 +16,7 @@ class UCTAgent(Agent):
             if all_samples is None:
                 all_samples = tuple(self.all_samples)
 
-            self.members = tuple(
-                UCTAgent(samples)
-                for samples in all_samples
-            )
+            self.members = tuple(UCTAgent(samples) for samples in all_samples)
 
         def get_members(self):
             return self.members
@@ -29,8 +25,11 @@ class UCTAgent(Agent):
             return hash(self.all_samples)
 
         def __eq__(self, other):
-            return other and isinstance(other, Series) and \
-                self.all_samples == other.all_samples
+            return (
+                other
+                and isinstance(other, Series)
+                and self.all_samples == other.all_samples
+            )
 
     name = "UCT Agent"
     C = 0.5
@@ -62,8 +61,7 @@ class UCTAgent(Agent):
         self.game.undo_move()
 
         if self.visits.get(next_state, 0) > 0 and next_state in self.wins:
-            self.set_confidence(
-                1 - self.wins[next_state]/self.visits[next_state])
+            self.set_confidence(1 - self.wins[next_state] / self.visits[next_state])
 
         self.clean(self.game.state, except_state=next_state)
         self.game.state.free(except_child=next_state)
@@ -98,10 +96,8 @@ class UCTAgent(Agent):
 
         if self.game.over():
             v = self.game.state.outcome * self.game.state.next_go
-            self.visits[self.game.state] = self.visits.get(
-                self.game.state, 0) + 1
-            self.wins[self.game.state] = self.wins.get(
-                self.game.state, 0) + (v == 1)
+            self.visits[self.game.state] = self.visits.get(self.game.state, 0) + 1
+            self.wins[self.game.state] = self.wins.get(self.game.state, 0) + (v == 1)
         else:
             v = self.playout()
 
@@ -114,8 +110,7 @@ class UCTAgent(Agent):
         else:
             v *= -1
 
-            self.wins[self.game.state] = self.wins.get(
-                self.game.state, 0) + (v == 1)
+            self.wins[self.game.state] = self.wins.get(self.game.state, 0) + (v == 1)
 
         return v
 
@@ -126,22 +121,20 @@ class UCTAgent(Agent):
         for move in self.game.get_moves():
             self.game.make_move(move)
             score = self._get_heuristic()
-            p.append((
-                self.wins.get(self.game.state, "-"),
-                self.visits.get(self.game.state, "-"),
-                score
-            ))
+            p.append(
+                (
+                    self.wins.get(self.game.state, "-"),
+                    self.visits.get(self.game.state, "-"),
+                    score,
+                )
+            )
 
             self.game.undo_move()
 
             scores.append((score, move))
 
         best_score, _ = max(scores)
-        best_moves = [
-            move
-            for score, move in scores
-            if score == best_score
-        ]
+        best_moves = [move for score, move in scores if score == best_score]
 
         return random.choice(best_moves)
 
@@ -155,16 +148,16 @@ class UCTAgent(Agent):
 
         if self.game.over():
             if state.outcome != state.next_go:
-                return 1 + self.C*sqrt(log(N))
+                return 1 + self.C * sqrt(log(N))
             else:
-                return 0 + self.C*sqrt(log(N)/N)
+                return 0 + self.C * sqrt(log(N) / N)
 
         if self.visits.get(state, 0) == 0:
             win_ratio = 0.5
         else:
-            win_ratio = 1 - self.wins.get(state, 0)/self.visits.get(state)
+            win_ratio = 1 - self.wins.get(state, 0) / self.visits.get(state)
 
-        return win_ratio + self.C*sqrt(log(N)/self.visits.get(state, 1))
+        return win_ratio + self.C * sqrt(log(N) / self.visits.get(state, 1))
 
     def get_progress(self):
-        return self.move_evals/self.samples_per_move
+        return self.move_evals / self.samples_per_move

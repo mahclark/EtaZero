@@ -3,9 +3,7 @@ from random import choice
 
 
 class RandomAgent(Agent):
-
     class Series(Series):
-
         def __init__(self):
             self.label = RandomAgent.name
 

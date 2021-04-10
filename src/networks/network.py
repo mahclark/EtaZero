@@ -3,7 +3,6 @@ import torch.nn as nn
 
 
 class Network(nn.Module):
-
     def __init__(self):
         super().__init__()
         self.iteration = -1
@@ -15,7 +14,6 @@ class Network(nn.Module):
 
 
 class ValueWinNetwork(Network):
-
     def evaluate(self, state):
         """
         Given a game state, returns a tuple/tensor with:
@@ -30,7 +28,6 @@ class ValueWinNetwork(Network):
 
 
 class PolicyValueNetwork(Network):
-
     def evaluate(self, state):
         """
         Given a game state, returns:

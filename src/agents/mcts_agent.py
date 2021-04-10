@@ -26,7 +26,7 @@ class MinimaxMCTS(Agent):
             get_score=functools.partial(self.minimax, self.playouts_per_move)
         )
 
-        self.set_confidence((score*self.game.state.next_go + 1)/2)
+        self.set_confidence((score * self.game.state.next_go + 1) / 2)
         return best_move
 
     def minimax(self, playouts):
@@ -38,14 +38,19 @@ class MinimaxMCTS(Agent):
             return self.game.state.outcome
 
         # The number of playouts for each of the child states
-        next_level_playouts = int(round(playouts/len(self.game.get_moves())))
+        next_level_playouts = int(round(playouts / len(self.game.get_moves())))
 
         # Perform MCTS if we don't have enough playouts for minimax
         if next_level_playouts < 1:
-            val = sum([
-                self.tree_search.playout(self.random_choice)
-                for _ in range(playouts)
-            ])/playouts
+            val = (
+                sum(
+                    [
+                        self.tree_search.playout(self.random_choice)
+                        for _ in range(playouts)
+                    ]
+                )
+                / playouts
+            )
             self.playouts_played += playouts
             return val
 
@@ -55,7 +60,7 @@ class MinimaxMCTS(Agent):
         )
 
         # Scale slightly so the AI prefers immediate wins and drawn-out losses.
-        return best_score*0.9999
+        return best_score * 0.9999
 
     def random_choice(self):
         return choice(tuple(self.game.get_moves()))

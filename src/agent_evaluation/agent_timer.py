@@ -42,13 +42,12 @@ class TimeStatsEncoder(json.JSONEncoder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.kwargs = dict(kwargs)
-        del self.kwargs['indent']
+        del self.kwargs["indent"]
         self._replacement_map = {}
 
     def default(self, obj):
         if isinstance(obj, TimeStats):
-            self._replacement_map[id(obj)] = json.dumps(
-                tuple(obj), **self.kwargs)
+            self._replacement_map[id(obj)] = json.dumps(tuple(obj), **self.kwargs)
             return f"@@{id(obj)}@@"
         return super().default(obj)
 
@@ -60,14 +59,9 @@ class TimeStatsEncoder(json.JSONEncoder):
 
 
 class AgentTimer:
-
     def __init__(self, base_path="", section=""):
         self.timing_data_path = os.path.join(
-            base_path,
-            "data",
-            "timing",
-            section,
-            "times.json"
+            base_path, "data", "timing", section, "times.json"
         )
 
         self.sys_id = "colab" if "google.colab" in sys.modules else socket.gethostname()
@@ -94,8 +88,8 @@ class AgentTimer:
             print(" .", end="")
 
             # print progress
-            j = 10*(i+1)//num_games
-            if ceil(num_games*j/10) == i+1:
+            j = 10 * (i + 1) // num_games
+            if ceil(num_games * j / 10) == i + 1:
                 print(f"\n{j/10:.0%}", end="")
 
         print()
@@ -124,22 +118,13 @@ class AgentTimer:
                 for tid, hist in all_hist.items():
                     for rem_tiles, time_stats in hist.items():
                         hist[rem_tiles] = TimeStats(*time_stats)
-                    all_hist[tid] = {k: v for k, v in sorted(
-                        hist.items(), key=lambda x: int(x[0]))}
+                    all_hist[tid] = {
+                        k: v for k, v in sorted(hist.items(), key=lambda x: int(x[0]))
+                    }
 
-            data.setdefault(
-                self.sys_id,
-                {}
-            ).setdefault(
-                time_id,
-                {}
-            ).setdefault(
-                str(remaining_tiles),
-                TimeStats(0, 0)
-            ).update(
-                duration,
-                moves
-            )
+            data.setdefault(self.sys_id, {}).setdefault(time_id, {}).setdefault(
+                str(remaining_tiles), TimeStats(0, 0)
+            ).update(duration, moves)
 
             timing_file.seek(0)
             txt = json.dumps(data, indent=3, cls=TimeStatsEncoder)
@@ -157,10 +142,12 @@ class AgentTimer:
         avg_times = {}
         for time_id, time_dict in times.items():
             avg_times[time_id] = OrderedDict(
-                sorted(zip(
-                    map(int, time_dict.keys()),
-                    map(lambda x: x[0]/x[1], time_dict.values())
-                ))
+                sorted(
+                    zip(
+                        map(int, time_dict.keys()),
+                        map(lambda x: x[0] / x[1], time_dict.values()),
+                    )
+                )
             )
 
         return avg_times

@@ -12,14 +12,14 @@ from networks.dummy_networks import DummyPVNetwork, DummyVWNetwork
 from networks.network import PolicyValueNetwork, ValueWinNetwork
 from threading import Thread
 from tqdm import tqdm
-from utils import get_model_files,  load_net
+from utils import get_model_files, load_net
 
 
 class EtaZero(Agent):
-
     class Series(Series):
-
-        def __init__(self, samples_per_move, base_path="", section="", lower_limit=None):
+        def __init__(
+            self, samples_per_move, base_path="", section="", lower_limit=None
+        ):
             self.label = f"{EtaZero.name}-{samples_per_move}"
             self.samples_per_move = samples_per_move
             self.base_path = base_path
@@ -28,9 +28,12 @@ class EtaZero(Agent):
 
         def get_members(self):
             return [
-                EtaZero(load_net(i, self.base_path, self.section),
-                        self.samples_per_move)
-                for i, _ in sorted(get_model_files(self.base_path, self.section).items())
+                EtaZero(
+                    load_net(i, self.base_path, self.section), self.samples_per_move
+                )
+                for i, _ in sorted(
+                    get_model_files(self.base_path, self.section).items()
+                )
                 if self.lower_limit is None or i >= self.lower_limit
             ]
 
@@ -38,15 +41,15 @@ class EtaZero(Agent):
             return hash(self.samples_per_move)
 
         def __eq__(self, other):
-            return other and isinstance(other, Series) and \
-                self.samples_per_move == other.samples_per_move
+            return (
+                other
+                and isinstance(other, Series)
+                and self.samples_per_move == other.samples_per_move
+            )
 
     name = "EtaZero"
 
-    expected_network_types = [
-        PolicyValueNetwork,
-        ValueWinNetwork
-    ]
+    expected_network_types = [PolicyValueNetwork, ValueWinNetwork]
 
     def __init__(self, network, training=False, samples_per_move=50, num=None):
         super().__init__(num)
@@ -64,8 +67,12 @@ class EtaZero(Agent):
                 self.network_type = network_type
 
         if not self.network_type:
-            raise Exception("EtaZero instantiated with unexpected network type {0}. Expected one of {1}"
-                            .format(network.__class__.__name__, ", ".join(map(lambda c: c.__name__, self.expected_network_types))))
+            raise Exception(
+                "EtaZero instantiated with unexpected network type {0}. Expected one of {1}".format(
+                    network.__class__.__name__,
+                    ", ".join(map(lambda c: c.__name__, self.expected_network_types)),
+                )
+            )
 
     @staticmethod
     def make_elo_id(samples_per_move, network_id):
@@ -102,10 +109,10 @@ class EtaZero(Agent):
             total_W = sum([action.W for action in self.move_root.actions])
             total_N = sum([action.N for action in self.move_root.actions])
 
-            self.move_root.Q = -total_W/total_N
+            self.move_root.Q = -total_W / total_N
 
         score = self.move_root.action_dict[move].Q
-        self.set_confidence((score + 1)/2)
+        self.set_confidence((score + 1) / 2)
 
         self.move_root = self.move_root.take_move(move)
 
@@ -133,7 +140,8 @@ class EtaZero(Agent):
                 return
 
         raise Exception(
-            "EtaZero couldn't find current game state. This happens when > 1 move has been made since EtaZero's last move.")
+            "EtaZero couldn't find current game state. This happens when > 1 move has been made since EtaZero's last move."
+        )
 
     def sample_and_get_probs(self, n=1600, tau=1):
         """
@@ -143,25 +151,26 @@ class EtaZero(Agent):
 
         if self.game.over():
             raise Exception(
-                "Cannot calculate search probabilities if game has finished.")
+                "Cannot calculate search probabilities if game has finished."
+            )
 
         for i in range(n):
-            self.progress = i/n
+            self.progress = i / n
             self.probe(self.move_root)
 
         return self.get_move_probs(self.move_root)
 
     def get_move_probs(self, state_node, tau=1):
 
-        sum_visits = max(1, sum([a.N**(1/tau) for a in state_node.actions]))
+        sum_visits = max(1, sum([a.N ** (1 / tau) for a in state_node.actions]))
         moves = [action.move for action in state_node.actions]
-        probs = [a.N**(1/tau)/sum_visits for a in state_node.actions]
+        probs = [a.N ** (1 / tau) / sum_visits for a in state_node.actions]
         return (moves, np.array(probs))
 
     def probe(self, node):
         if node.is_leaf():
             if self.game.over():
-                return self.game.state.outcome*self.game.state.next_go
+                return self.game.state.outcome * self.game.state.next_go
 
             if self.network_type == PolicyValueNetwork:
                 pi, win_pred = self.network.evaluate(self.game.state)
@@ -193,19 +202,21 @@ class EtaZero(Agent):
         if node.state.outcome != 0:
             node = self.move_root.parent  # we don't train on a terminating node
 
-        while node != None and (self.network_type == PolicyValueNetwork or node.Q != None):
+        while node != None and (
+            self.network_type == PolicyValueNetwork or node.Q != None
+        ):
 
             if self.network_type == PolicyValueNetwork:
                 graph = node.state.to_dgl_graph(with_move_nodes=True)
 
                 ns = torch.tensor([float(a.N) for a in node.actions])
-                policy = ns/torch.sum(ns)
+                policy = ns / torch.sum(ns)
                 value = 1 if self.game.state.outcome == node.state.next_go else -1
                 label = torch.zeros(graph.num_nodes())
 
                 # print(len(node.state.get_moves()), policy)
 
-                label[:len(node.state.get_moves())] = policy
+                label[: len(node.state.get_moves())] = policy
                 label = torch.cat((label, torch.tensor(value).unsqueeze(0)))
 
             else:
@@ -241,7 +252,7 @@ class StateNode:
         self.leaf = False
         self.win_pred = win_pred
 
-        assert(game.state.outcome == 0)
+        assert game.state.outcome == 0
 
         def get_child_state(move):
             game.make_move(move)
@@ -250,7 +261,7 @@ class StateNode:
             return state
 
         moves = game.get_moves()
-        assert(len(moves) == len(pi))
+        assert len(moves) == len(pi)
 
         self.actions = [
             Action(move, p, StateNode(get_child_state(move), self))
@@ -262,25 +273,24 @@ class StateNode:
     def expand_val_win(self, network, game):
         self.leaf = False
 
-        assert(game.state.outcome == 0)
+        assert game.state.outcome == 0
 
         action_data = []
         vals = []
         for move in game.get_moves():
             game.make_move(move)
             if game.over():
-                result = game.state.outcome*game.state.next_go
+                result = game.state.outcome * game.state.next_go
                 val, win = -result, result
             else:
                 val, win = network.evaluate(game.state)
 
-            action_data.append(
-                (move, StateNode(game.state, self, win_pred=win)))
+            action_data.append((move, StateNode(game.state, self, win_pred=win)))
             vals.append(val)
             game.undo_move()
 
-        vals = (1 + torch.tensor(vals))/2  # adjust range from [-1,1] to [0,1]
-        ps = vals/torch.sum(vals)  # normalise vals to sum to 1
+        vals = (1 + torch.tensor(vals)) / 2  # adjust range from [-1,1] to [0,1]
+        ps = vals / torch.sum(vals)  # normalise vals to sum to 1
 
         self.actions = []
         self.action_dict = {}
@@ -298,7 +308,11 @@ class StateNode:
     def get_action_scores(self):
         sqrt_sum_visits = sqrt(sum([a.N for a in self.actions]))
         scores = np.array(
-            [a.Q + self.c_puct*a.P*sqrt_sum_visits/(1 + a.N) for a in self.actions])
+            [
+                a.Q + self.c_puct * a.P * sqrt_sum_visits / (1 + a.N)
+                for a in self.actions
+            ]
+        )
         return scores
 
     def take_move(self, move):
@@ -321,7 +335,7 @@ class Action:
     def update(self, z):
         self.N += 1
         self.W += z
-        self.Q = self.W/self.N
+        self.Q = self.W / self.N
         self.next_state.Q = self.Q
 
     def __hash__(self):
@@ -339,8 +353,7 @@ class EtaZeroVisualiser:
 
         pygame.init()
         x_size, y_size = 1000, 600
-        self.screen = pygame.display.set_mode(
-            (x_size, y_size), pygame.RESIZABLE)
+        self.screen = pygame.display.set_mode((x_size, y_size), pygame.RESIZABLE)
         pygame.display.set_caption("EtaZero Visualiser")
 
         self.h_gap = 150
@@ -353,15 +366,9 @@ class EtaZeroVisualiser:
             xs, ys = [], []
 
         if eta_zero.network_type == ValueWinNetwork:
-            self.labels = {
-                state: (val, win)
-                for state, (val, win) in zip(xs, ys)
-            }
+            self.labels = {state: (val, win) for state, (val, win) in zip(xs, ys)}
         else:
-            self.labels = {
-                state: pv
-                for state, pv in zip(xs, ys)
-            }
+            self.labels = {state: pv for state, pv in zip(xs, ys)}
 
         # thread = Thread(target = self.begin)
         # thread.start()
@@ -380,19 +387,22 @@ class EtaZeroVisualiser:
                     x_size = max(600, event.w)
                     y_size = max(600, event.h)
                     self.screen = pygame.display.set_mode(
-                        (x_size, y_size), pygame.RESIZABLE)
+                        (x_size, y_size), pygame.RESIZABLE
+                    )
 
                 if event.type == pygame.MOUSEBUTTONUP:
                     if event.button == 1:
-                        i = (mx - 50)//self.h_gap
+                        i = (mx - 50) // self.h_gap
                         if 0 <= i < len(self.actions):
                             self.go_down(self.actions[i][0].move)
                     elif event.button in [3, 4]:
                         self.go_up()
                     elif event.button == 5:
-                        if self.current_node.state in self.state_list and self.current_node.actions:
-                            idx = self.state_list.index(
-                                self.current_node.state) + 1
+                        if (
+                            self.current_node.state in self.state_list
+                            and self.current_node.actions
+                        ):
+                            idx = self.state_list.index(self.current_node.state) + 1
                             if idx < len(self.state_list):
                                 for action in self.current_node.actions:
                                     if action.next_state.state == self.state_list[idx]:
@@ -413,8 +423,7 @@ class EtaZeroVisualiser:
                     if event.key == pygame.K_UP:
                         self.go_up()
                     if event.key == pygame.K_DOWN:
-                        move = self.eta_zero.select_move_from_state(
-                            self.current_node)
+                        move = self.eta_zero.select_move_from_state(self.current_node)
                         if move:
                             self.go_down(move)
 
@@ -437,9 +446,8 @@ class EtaZeroVisualiser:
     def set_actions(self):
         if self.current_node.actions:
             self.actions = sorted(
-                zip(self.current_node.actions,
-                    self.current_node.get_action_scores()),
-                key=lambda a: -a[0].N
+                zip(self.current_node.actions, self.current_node.get_action_scores()),
+                key=lambda a: -a[0].N,
             )
         else:
             self.actions = []
@@ -475,16 +483,16 @@ class EtaZeroVisualiser:
 
         base = self.current_node.state.score.base
         grid_height = 106
-        grid_width = (grid_height - 1)*(2*base + 1)//base + 1
-        grid_surf = pygame.Surface(
-            (grid_width, grid_height), pygame.SRCALPHA, 32)
+        grid_width = (grid_height - 1) * (2 * base + 1) // base + 1
+        grid_surf = pygame.Surface((grid_width, grid_height), pygame.SRCALPHA, 32)
         Renderer.draw_score_grid(grid_surf, self.current_node.state.score)
         self.screen.blit(grid_surf, (margin + 190, 44))
 
         if str(self.current_node.state) in self.labels:
             if self.eta_zero.network_type == ValueWinNetwork:
                 label = ", ".join(
-                    map("{:.2f}".format, self.labels[str(self.current_node.state)]))
+                    map("{:.2f}".format, self.labels[str(self.current_node.state)])
+                )
                 title_lbl = self.font.render(f"val, win", 1, white)
                 label_lbl = self.font.render(label, 1, white)
             else:
@@ -497,45 +505,47 @@ class EtaZeroVisualiser:
 
         if str(self.current_node.state) in self.labels:
             ps, _ = torch.sort(
-                self.labels[str(self.current_node.state)], descending=True)
+                self.labels[str(self.current_node.state)], descending=True
+            )
             ps = self.labels[str(self.current_node.state)]
         else:
             ps = None
 
         for i, (action, score) in enumerate(self.actions):
-            lbl0 = self.font.render(" | ".join(
-                map(self.format_move, action.move)), 1, white)
-            self.screen.blit(lbl0, (margin + self.h_gap*i - 20, 160))
+            lbl0 = self.font.render(
+                " | ".join(map(self.format_move, action.move)), 1, white
+            )
+            self.screen.blit(lbl0, (margin + self.h_gap * i - 20, 160))
 
             dot_text_col = (blue, white)
             if action.next_state.state in self.state_list:
                 dot_text_col = (white, d_blue)
 
             pygame.draw.circle(
-                self.screen, dot_text_col[0], (margin + self.h_gap*i, 220), 20)
+                self.screen, dot_text_col[0], (margin + self.h_gap * i, 220), 20
+            )
             if action.next_state:
                 if action.next_state.win_pred is not None:
                     lbl1_text = f"{(1 + action.next_state.win_pred)/2:.1%}"
                 else:
                     lbl1_text = "None"
                 lbl1 = self.font.render(lbl1_text, 1, dot_text_col[1])
-                self.screen.blit(lbl1, (margin + self.h_gap*i - 20, 210))
+                self.screen.blit(lbl1, (margin + self.h_gap * i - 20, 210))
 
             lbl2 = self.font.render("P = {:.1%}".format(action.P), 1, white)
-            self.screen.blit(lbl2, (margin + self.h_gap*i - 10, 250))
+            self.screen.blit(lbl2, (margin + self.h_gap * i - 10, 250))
 
             lbl3 = self.font.render("N = {:.2f}".format(action.N), 1, white)
-            self.screen.blit(lbl3, (margin + self.h_gap*i - 10, 300))
+            self.screen.blit(lbl3, (margin + self.h_gap * i - 10, 300))
 
             lbl4 = self.font.render("W = {:.2f}".format(action.W), 1, white)
-            self.screen.blit(lbl4, (margin + self.h_gap*i - 10, 350))
+            self.screen.blit(lbl4, (margin + self.h_gap * i - 10, 350))
 
-            lbl5 = self.font.render(
-                "Q = {:.1%}".format((1 + action.Q)/2), 1, white)
-            self.screen.blit(lbl5, (margin + self.h_gap*i - 10, 400))
+            lbl5 = self.font.render("Q = {:.1%}".format((1 + action.Q) / 2), 1, white)
+            self.screen.blit(lbl5, (margin + self.h_gap * i - 10, 400))
 
             lbl6 = self.font.render("Sc = {:.3f}".format(score), 1, white)
-            self.screen.blit(lbl6, (margin + self.h_gap*i - 10, 450))
+            self.screen.blit(lbl6, (margin + self.h_gap * i - 10, 450))
 
             if self.eta_zero.network_type == PolicyValueNetwork and ps is not None:
                 for j, move in enumerate(self.current_node.state.get_moves()):
@@ -543,12 +553,16 @@ class EtaZeroVisualiser:
                         break
 
                 lbl7 = self.font.render(f"Pi = {ps[j]:.3f}", 1, white)
-                self.screen.blit(lbl7, (margin + self.h_gap*i - 10, 500))
+                self.screen.blit(lbl7, (margin + self.h_gap * i - 10, 500))
 
         for i, state in enumerate(self.state_list):
             col = blue if state == self.current_node.state else d_blue
-            pygame.draw.circle(self.screen, col, (20, self.screen.get_size()[
-                               1]*(i + 1)//(len(self.state_list) + 1)), 10)
+            pygame.draw.circle(
+                self.screen,
+                col,
+                (20, self.screen.get_size()[1] * (i + 1) // (len(self.state_list) + 1)),
+                10,
+            )
 
         pygame.display.flip()
 

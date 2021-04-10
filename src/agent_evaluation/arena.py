@@ -64,13 +64,12 @@ class GameStatsEncoder(json.JSONEncoder):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.kwargs = dict(kwargs)
-        del self.kwargs['indent']
+        del self.kwargs["indent"]
         self._replacement_map = {}
 
     def default(self, obj):
         if isinstance(obj, GameStats):
-            self._replacement_map[id(obj)] = json.dumps(
-                tuple(obj), **self.kwargs)
+            self._replacement_map[id(obj)] = json.dumps(tuple(obj), **self.kwargs)
             return f"@@{id(obj)}@@"
         return super().default(obj)
 
@@ -89,11 +88,7 @@ class Arena:
     def __init__(self, base_path="", section="", saving_enabled=True):
         self.base_path = base_path
         self.elo_rating_path = os.path.join(
-            base_path,
-            "data",
-            "elo",
-            section,
-            "ratings.json"
+            base_path, "data", "elo", section, "ratings.json"
         )
         self.tasks = []
         self.saving_enabled = saving_enabled
@@ -113,14 +108,9 @@ class Arena:
                 shift_pairs.append((None, None))
 
         for shift, elo_shift in shift_pairs:
-            self.tasks.append(Task(
-                series,
-                enemy_series,
-                game_pairs,
-                shift,
-                elo_shift,
-                base
-            ))
+            self.tasks.append(
+                Task(series, enemy_series, game_pairs, shift, elo_shift, base)
+            )
 
     def start(self, task_wait=10):
         while True:
@@ -141,8 +131,7 @@ class Arena:
                 elif task.elo_shift is not None:
                     # Finds the UCT with the closest elo
                     def get_enemy(i):
-                        ratings, history = LockParser.read(
-                            self.elo_rating_path)
+                        ratings, history = LockParser.read(self.elo_rating_path)
                         elo_id = task.series.get_at(i).elo_id
 
                         enemies = []
@@ -153,12 +142,13 @@ class Arena:
 
                             if enemy.elo_id in history.get(elo_id, {}):
                                 played.append(
-                                    (enemy, history[elo_id][enemy.elo_id].games))
+                                    (enemy, history[elo_id][enemy.elo_id].games)
+                                )
 
                         total_played = None
                         if len(played) >= 2:
                             enemy, _ = min(played, key=lambda x: x[1])
-                            total_played = sum(2*(p[1]//2) for p in played)
+                            total_played = sum(2 * (p[1] // 2) for p in played)
 
                         else:
                             if len(enemies) == 0 or elo_id not in ratings:
@@ -167,7 +157,8 @@ class Arena:
                             enemy, _ = min(
                                 enemies,
                                 key=lambda e: abs(
-                                    e[1] - ratings[elo_id] - task.elo_shift)
+                                    e[1] - ratings[elo_id] - task.elo_shift
+                                ),
                             )
 
                         return enemy, total_played
@@ -181,15 +172,22 @@ class Arena:
                     _, history = LockParser.read(self.elo_rating_path)
 
                     if total_played is None:
-                        games_played = history.get(agent.elo_id, {}).get(
-                            enemy.elo_id, GameStats(0, 0)).games
+                        games_played = (
+                            history.get(agent.elo_id, {})
+                            .get(enemy.elo_id, GameStats(0, 0))
+                            .games
+                        )
                     else:
                         games_played = total_played
 
-                    if games_played < task.game_pairs*2:
+                    if games_played < task.game_pairs * 2:
                         no_tasks = False
-                        self.battle(agent, enemy, min(10, task.game_pairs -
-                                    games_played//2), task.base)
+                        self.battle(
+                            agent,
+                            enemy,
+                            min(10, task.game_pairs - games_played // 2),
+                            task.base,
+                        )
                         break
 
             if no_tasks:
@@ -199,8 +197,7 @@ class Arena:
         if agent.elo_id == enemy.elo_id:
             raise Exception("Agents should not have the same elo_id.")
 
-        print(
-            f"{2*game_pairs} games {agent.elo_id} vs {enemy.elo_id} (fixed):")
+        print(f"{2*game_pairs} games {agent.elo_id} vs {enemy.elo_id} (fixed):")
 
         wins = 0
         games = 0
@@ -235,15 +232,10 @@ class Arena:
             prev_wins = wins
             wins, games = play_game_pair(wins, games)
 
-            rating, history = self._save(
-                agent,
-                enemy,
-                wins=wins - prev_wins,
-                games=2
-            )
+            rating, history = self._save(agent, enemy, wins=wins - prev_wins, games=2)
 
-            j = 10*(i+1)//game_pairs
-            if ceil(game_pairs*j/10) == i+1:
+            j = 10 * (i + 1) // game_pairs
+            if ceil(game_pairs * j / 10) == i + 1:
                 print(f" won {wins} of {games}")
                 print(f"{j/10:.0%}", end="")
 
@@ -270,7 +262,7 @@ class Arena:
         del game
         del state
 
-        return (1 + outcome)//2
+        return (1 + outcome) // 2
 
     def csv_to_json(self, path):
 
@@ -291,10 +283,9 @@ class Arena:
 
         with LockParser(self.elo_rating_path) as (f, _, _):
 
-            txt = json.dumps({
-                "ratings": ratings,
-                "history": history
-            }, indent=3, cls=GameStatsEncoder)
+            txt = json.dumps(
+                {"ratings": ratings, "history": history}, indent=3, cls=GameStatsEncoder
+            )
             f.write(txt)
 
     def _save(self, agent=None, enemy=None, wins=None, games=None):
@@ -305,23 +296,15 @@ class Arena:
 
             if None not in [agent, enemy, wins, games]:
 
-                history.setdefault(
-                    agent.elo_id,
-                    {}
-                ).setdefault(
-                    enemy.elo_id,
-                    GameStats(0, 0)
-                ).update(
-                    wins,
-                    games
-                )
+                history.setdefault(agent.elo_id, {}).setdefault(
+                    enemy.elo_id, GameStats(0, 0)
+                ).update(wins, games)
 
             ratings = self._calculate_ratings(ratings, history)
 
-            txt = json.dumps({
-                "ratings": ratings,
-                "history": history
-            }, indent=3, cls=GameStatsEncoder)
+            txt = json.dumps(
+                {"ratings": ratings, "history": history}, indent=3, cls=GameStatsEncoder
+            )
             f.write(txt)
 
             if None not in [agent, enemy, wins, games]:
@@ -333,14 +316,15 @@ class Arena:
         @lru_cache(maxsize=None)
         def get_rating(elo_id):
             if elo_id in visited:
-                print(
-                    f"Error: dependancy cycle in elo history (incl. {elo_id})")
+                print(f"Error: dependancy cycle in elo history (incl. {elo_id})")
                 return None
             visited.add(elo_id)
 
             total_games = 0
             sum_elo = 0
-            for rating, (wins, games) in [(get_rating(eid), hist) for eid, hist in history.get(elo_id, {}).items()]:
+            for rating, (wins, games) in [
+                (get_rating(eid), hist) for eid, hist in history.get(elo_id, {}).items()
+            ]:
                 if rating is None or games == 0:
                     continue
 
@@ -348,13 +332,13 @@ class Arena:
                     games += 1
                     wins += 1
 
-                elo = rating - 400*math.log(games/wins - 1)/math.log(10)
+                elo = rating - 400 * math.log(games / wins - 1) / math.log(10)
 
                 total_games += games
-                sum_elo += elo*games
+                sum_elo += elo * games
 
             if total_games > 0:
-                new_elo = round(sum_elo/total_games*10)/10
+                new_elo = round(sum_elo / total_games * 10) / 10
                 ratings[elo_id] = new_elo
             else:
                 new_elo = ratings.get(elo_id, None)
@@ -393,14 +377,18 @@ class Arena:
             if split_id[0] == "uct":
                 facecol = plt.gca().get_facecolor()
                 plt.axhline(y=rating, linestyle=":")
-                plt.text(y=rating, s=elo_id, c="white",
-                         **uct_label_args, bbox=dict(fc=facecol, ec=facecol))
+                plt.text(
+                    y=rating,
+                    s=elo_id,
+                    c="white",
+                    **uct_label_args,
+                    bbox=dict(fc=facecol, ec=facecol),
+                )
 
             elif split_id[0] == "EtaZero":
                 iteration = int(split_id[3])
                 samples = int(split_id[1])
-                xy = series_ratings.setdefault(
-                    EtaZero.Series(samples), ([], []))
+                xy = series_ratings.setdefault(EtaZero.Series(samples), ([], []))
 
                 xy[0].append(iteration)
                 xy[1].append(rating)
@@ -418,11 +406,18 @@ class Arena:
             x, y = zip(*sorted(zip(x, y)))
             plt.plot(x, y, label=series.label, zorder=1000)
 
-        plt.plot([0, max(series_ratings[EtaZero.Series(50)][0])], [
-                 best[0], best[0]], label=f"Iter {best[1]}: {best[0]}")
-        
+        plt.plot(
+            [0, max(series_ratings[EtaZero.Series(50)][0])],
+            [best[0], best[0]],
+            label=f"Iter {best[1]}: {best[0]}",
+        )
+
         for i, other_id in enumerate(["max", "prodigy-bot"]):
-            plt.axhline(y=ratings[other_id], label=f"{other_id}: {ratings[other_id]}", color=f"C{i+2}")
+            plt.axhline(
+                y=ratings[other_id],
+                label=f"{other_id}: {ratings[other_id]}",
+                color=f"C{i+2}",
+            )
 
         plt.ylabel("Elo Rating")
         plt.xlabel("Training Iteration")
@@ -440,7 +435,7 @@ class LockParser:
     @staticmethod
     def _create_if_not_exists(file_name):
         if not os.path.exists(file_name):
-            open(file_name, 'w').close()
+            open(file_name, "w").close()
 
     @staticmethod
     def _parse(file_handle):
@@ -459,10 +454,7 @@ class LockParser:
             for elo_id, game_stats in hist.items():
                 hist[elo_id] = GameStats(*game_stats)
 
-        return (
-            ratings,
-            history
-        )
+        return (ratings, history)
 
     @staticmethod
     def read(file_name):
@@ -483,12 +475,7 @@ class LockParser:
         self.file.seek(0)
         self.file.truncate()
 
-        return (
-            self.file,
-            ratings,
-            history
-        )
-
+        return (self.file, ratings, history)
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
         if exc_type is not None:
@@ -501,7 +488,8 @@ class LockParser:
 
 if __name__ == "__main__":
     from agents.network_agent import RawNetwork
-    arena = Arena(section="Attempt7")#, saving_enabled=False)
+
+    arena = Arena(section="Attempt7")  # , saving_enabled=False)
     arena.plot_all()
 
     # arena.battle(

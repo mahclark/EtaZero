@@ -1,9 +1,8 @@
-
-
 class Agent:
     """
     An abstract class to be inherited by any agent to play the game.
     """
+
     name = "Agent"
     confidence = None
     playouts_played = None
@@ -34,7 +33,6 @@ class Agent:
 
 
 class Series:
-
     def get_members(self):
         raise NotImplemented
 

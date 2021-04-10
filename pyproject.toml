@@ -16,9 +16,9 @@ pygame = "^2.0.1"
 matplotlib = "^3.0.2"
 portalocker = "^2.3.0"
 tqdm = "^4.59.0"
-black = "^20.8b1"
 
 [tool.poetry.dev-dependencies]
+black = "^20.8b1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -29,7 +29,12 @@ play = "scripts:play"
 train = "scripts:train"
 arena = "scripts:arena"
 timer = "scripts:timer"
-test = "scripts:test"
+testnet = "scripts:testnet"
+fmt = "scripts:fmt"
+
 
 [tool.black]
 line-length = 88
+
+[tool.isort]
+profile = "black"

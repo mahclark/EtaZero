@@ -16,16 +16,16 @@ class Pos(NamedTuple):
     col: int
 
     def left(self):
-        return Pos(self.row-1, self.col)
+        return Pos(self.row - 1, self.col)
 
     def right(self):
-        return Pos(self.row+1, self.col)
+        return Pos(self.row + 1, self.col)
 
     def up(self):
-        return Pos(self.row, self.col-1)
+        return Pos(self.row, self.col - 1)
 
     def down(self):
-        return Pos(self.row, self.col+1)
+        return Pos(self.row, self.col + 1)
 
     def __str__(self):
         return "{0},{1}".format(self.row, self.col)
@@ -49,7 +49,7 @@ class Game:
             self.state = State(
                 board=Board(base),
                 score=Score(base),
-                next_go=1  # Player 1 or -1 to play?
+                next_go=1,  # Player 1 or -1 to play?
             )
         else:
             self.base = state.score.base
@@ -102,7 +102,7 @@ class Game:
             score=score,
             next_go=-self.state.next_go,
             parent=self.state,
-            move=move
+            move=move,
         )
 
         move.next_state = self.state
@@ -131,15 +131,11 @@ class Game:
 
         state = State.from_str(s)
 
-        return Game(
-            state.score.base,
-            state
-        )
+        return Game(state.score.base, state)
 
 
 @total_ordering
 class Move:
-
     def __init__(self, move_set):
         self.tiles = tuple(map(lambda p: Pos(*p), sorted(list(move_set))))
         self.next_state = None
@@ -180,7 +176,7 @@ class Board:
 
         if board == None:
             # Randomly generate a board assignment
-            tiles = [i % base for i in range(base**2)]
+            tiles = [i % base for i in range(base ** 2)]
             shuffle(tiles)
             board = [[tiles.pop() for _ in range(base)] for _ in range(base)]
 
@@ -193,26 +189,20 @@ class Board:
             for row in range(self.base)
             for col in range(self.base)
             if self.get_at(row, col) >= 0
-            and (self.get_at(row-1, col) == -1 or self.get_at(row+1, col) == -1)
-            and (self.get_at(row, col-1) == -1 or self.get_at(row, col+1) == -1)
+            and (self.get_at(row - 1, col) == -1 or self.get_at(row + 1, col) == -1)
+            and (self.get_at(row, col - 1) == -1 or self.get_at(row, col + 1) == -1)
         ]
 
         # List of takable tiles for each color.
         takable_colors = [
-            [
-                tile
-                for tile in self.get_takable()
-                if self.get_at(tile) == i
-            ]
+            [tile for tile in self.get_takable() if self.get_at(tile) == i]
             for i in range(self.base)
         ]
 
         # All possible next moves.
-        self.moves = sorted([
-            Move(comb)
-            for tiles in takable_colors
-            for comb in self._all_combs(tiles)
-        ])
+        self.moves = sorted(
+            [Move(comb) for tiles in takable_colors for comb in self._all_combs(tiles)]
+        )
 
         self.hash_val = hash(self.board)
 
@@ -222,12 +212,8 @@ class Board:
         Returns a list of all ways to take any number > 0 of members of a.
         """
         combs = []
-        for b in range(1, 2**len(a)):
-            combs.append({
-                a[i]
-                for i in range(len(a))
-                if (b >> i) & 1 == 1
-            })
+        for b in range(1, 2 ** len(a)):
+            combs.append({a[i] for i in range(len(a)) if (b >> i) & 1 == 1})
 
         return combs
 
@@ -242,25 +228,24 @@ class Board:
         return self.board[row][col]
 
     def make_move(self, move):
-        if (len(move) == 0):
+        if len(move) == 0:
             raise Exception("Invalid move: must select a tile.")
         color = self.get_at(next(iter(move)))
         for tile in move:
             if self.get_at(tile) == -1:
-                raise Exception(
-                    "Invalid move: tile at {} already taken.".format(tile))
+                raise Exception("Invalid move: tile at {} already taken.".format(tile))
             if self.get_at(tile) != color:
                 raise Exception("Invalid move: cannot take multiple colors.")
 
         return Board(
             self.base,
             [
-                [-1
-                 if (row, col) in move
-                 else self.get_at(row, col)
-                 for col in range(self.base)]
+                [
+                    -1 if (row, col) in move else self.get_at(row, col)
+                    for col in range(self.base)
+                ]
                 for row in range(self.base)
-            ]
+            ],
         )
 
     def is_empty(self):
@@ -291,7 +276,16 @@ class Board:
         if sum([len(row) != base for row in board]) > 0:
             raise Exception("All rows must have length as the base number.")
 
-        if sum([board[row][col] < -1 or board[row][col] >= base for row in range(base) for col in range(base)]) > 0:
+        if (
+            sum(
+                [
+                    board[row][col] < -1 or board[row][col] >= base
+                    for row in range(base)
+                    for col in range(base)
+                ]
+            )
+            > 0
+        ):
             raise Exception("Tiles must be >= -1 and <= base number.")
 
     @staticmethod
@@ -307,7 +301,7 @@ class Board:
                     for _ in range(int(c)):
                         row.append(-1)
                 else:
-                    row.append(ord(c) - ord('a'))
+                    row.append(ord(c) - ord("a"))
             board.append(row)
 
         Board.validate(board)
@@ -327,7 +321,7 @@ class Board:
                     if blank_counter > 0:
                         r += str(blank_counter)
                         blank_counter = 0
-                    r += chr(ord('a') + tile)
+                    r += chr(ord("a") + tile)
 
             if blank_counter > 0:
                 r += str(blank_counter)
@@ -364,30 +358,31 @@ class Score:
         self.validate(score)
         if len(score) != base:
             raise Exception(
-                "The score must have the same number of items as the base number.\nBase: {0}\nItems: {1}".format(base, len(score)))
+                "The score must have the same number of items as the base number.\nBase: {0}\nItems: {1}".format(
+                    base, len(score)
+                )
+            )
 
         # 1 if player1 has captured all of a colour, -1 if player2, else 0
-        self.player_with_all = sum([int(x/self.base) for x in self.score])
+        self.player_with_all = sum([int(x / self.base) for x in self.score])
 
         # The number of colors the two players have the majority in.
         self.score_pair = (
             sum([x > 0 for x in self.score]),
-            sum([x < 0 for x in self.score])
+            sum([x < 0 for x in self.score]),
         )
 
         self.hash_val = hash(self.score)
 
     def make_move(self, move, color, next_go):
-        diff = next_go*len(move)
+        diff = next_go * len(move)
 
         return Score(
             self.base,
             [
-                self.score[i] + diff
-                if i == color
-                else self.score[i]
+                self.score[i] + diff if i == color else self.score[i]
                 for i in range(self.base)
-            ]
+            ],
         )
 
     def get_player_with_all(self):
@@ -417,16 +412,15 @@ class Score:
 
         neg = False
         for c in s:
-            if c == '-':
+            if c == "-":
                 if not neg:
                     neg = True
                 else:
-                    raise Exception(
-                        "Invalid string: found double '-' in score.")
+                    raise Exception("Invalid string: found double '-' in score.")
             elif not neg:
-                score.append(ord(c) - ord('a'))
+                score.append(ord(c) - ord("a"))
             else:
-                score.append(ord('a') - ord(c))
+                score.append(ord("a") - ord(c))
                 neg = False
 
         Score.validate(score)
@@ -436,7 +430,7 @@ class Score:
     def __str__(self):
         s = ""
         for x in self.score:
-            s += ("-" if x < 0 else "") + chr(ord('a') + abs(x))
+            s += ("-" if x < 0 else "") + chr(ord("a") + abs(x))
 
         return s
 
@@ -479,7 +473,8 @@ class State:
             p1score, p2score = score.get_score_pair()
             if p1score == p2score:
                 raise Exception(
-                    "Internal error: player scores equal when board is empty.")
+                    "Internal error: player scores equal when board is empty."
+                )
             if p1score > p2score:
                 self.outcome = 1
             else:
@@ -487,13 +482,11 @@ class State:
         else:
             self.outcome = 0
 
-        self.hash_val = hash(
-            (self.board, self.score, self.next_go, self.outcome)
-        )
+        self.hash_val = hash((self.board, self.score, self.next_go, self.outcome))
 
     def __str__(self):
         # Who's go is next
-        s = str(int((3 - self.next_go)/2)) + "/"
+        s = str(int((3 - self.next_go) / 2)) + "/"
 
         # Score
         s += str(self.score) + "/"
@@ -510,12 +503,14 @@ class State:
         return self.hash_val
 
     def __eq__(self, other):
-        return other and \
-            isinstance(other, State) and \
-            self.next_go == other.next_go and \
-            self.outcome == other.outcome and \
-            self.score == other.score and \
-            self.board == other.board
+        return (
+            other
+            and isinstance(other, State)
+            and self.next_go == other.next_go
+            and self.outcome == other.outcome
+            and self.score == other.score
+            and self.board == other.board
+        )
 
     def __ne__(self, other):
         return not self.__eq__(other)
@@ -564,15 +559,16 @@ class State:
         A negative score value is preceeded by -
         An empty cell or a sequence of empty cells on the same row is denoted by the number of consequtive empty cells.
         """
-        parts = s.split('/')
+        parts = s.split("/")
         if len(parts) != 3:
             raise Exception("Must have 3 parts separated by '/'.")
 
         if parts[0] not in ["1", "2"]:
             raise Exception(
-                "Expected first part to be 1 or 2; got {}.".format(parts[0]))
+                "Expected first part to be 1 or 2; got {}.".format(parts[0])
+            )
 
-        next_go = 3 - 2*int(parts[0])
+        next_go = 3 - 2 * int(parts[0])
         score = Score.from_str(parts[1])
         board = Board.from_str(parts[2])
 
@@ -586,25 +582,25 @@ class State:
         score_pair = self.score.get_score_pair()
 
         return [
-            self.board.base - self.score.get_score(tile)*self.next_go,
-            self.board.base + self.score.get_score(tile)*self.next_go,
-            (score_pair[0] - score_pair[1])*self.next_go
+            self.board.base - self.score.get_score(tile) * self.next_go,
+            self.board.base + self.score.get_score(tile) * self.next_go,
+            (score_pair[0] - score_pair[1]) * self.next_go,
         ]
 
     def to_dgl_graph(self, with_move_nodes=False):
         if self.dgl_graph != None:
             return self.dgl_graph
 
-        size_bound = self.board.base**3 + 16*self.board.base**2
+        size_bound = self.board.base ** 3 + 16 * self.board.base ** 2
 
         if with_move_nodes:
-            size_bound += (2**self.board.base)*self.board.base*4
+            size_bound += (2 ** self.board.base) * self.board.base * 4
 
         class Edges:
             def __init__(self):
-                self.etypes = [0]*size_bound
-                self.src = [0]*size_bound
-                self.dst = [0]*size_bound
+                self.etypes = [0] * size_bound
+                self.src = [0] * size_bound
+                self.dst = [0] * size_bound
                 self.size = 0
 
             def add_edge(self, u, v, rel_id, both_ways=False):
@@ -624,13 +620,10 @@ class State:
                     self.size += 1
 
             def get_etypes(self):
-                return self.etypes[:self.size]
+                return self.etypes[: self.size]
 
             def get_src_dst(self):
-                return (
-                    self.src[:self.size],
-                    self.dst[:self.size]
-                )
+                return (self.src[: self.size], self.dst[: self.size])
 
             # def gpu_tensors(self):
             #     # t = get_time()
@@ -692,10 +685,14 @@ class State:
         for pos, index in index_map.items():
             if pos not in self.board.get_takable():
 
-                blocked_h = self.board.get_at(
-                    pos.left()) > -1 and self.board.get_at(pos.right()) > -1
-                blocked_v = self.board.get_at(
-                    pos.up()) > -1 and self.board.get_at(pos.down()) > -1
+                blocked_h = (
+                    self.board.get_at(pos.left()) > -1
+                    and self.board.get_at(pos.right()) > -1
+                )
+                blocked_v = (
+                    self.board.get_at(pos.up()) > -1
+                    and self.board.get_at(pos.down()) > -1
+                )
 
                 assert blocked_h or blocked_v
 
@@ -719,15 +716,14 @@ class State:
 
                 if blocked_h and blocked_v:
                     edges.add_edge(left, up, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(
-                        up, right, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(
-                        right, down, Relation.DIAGONAL, both_ways=True)
-                    edges.add_edge(
-                        down, left, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(up, right, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(right, down, Relation.DIAGONAL, both_ways=True)
+                    edges.add_edge(down, left, Relation.DIAGONAL, both_ways=True)
 
         # Densely connect all same color nodes and all takable nodes.
-        for relation_set, rel_id in [(takable_set, Relation.TAKABLE)] + [(color_set, Relation.SAME_COLOR) for color_set in color_sets.values()]:
+        for relation_set, rel_id in [(takable_set, Relation.TAKABLE)] + [
+            (color_set, Relation.SAME_COLOR) for color_set in color_sets.values()
+        ]:
             for u in relation_set:
                 for v in relation_set:
                     if u != v:
