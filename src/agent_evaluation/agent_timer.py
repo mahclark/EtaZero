@@ -153,23 +153,9 @@ class AgentTimer:
         return avg_times
 
     def get_info(self):
-        with open(self.timing_data_path) as timing_file:
-            reader = csv.reader(timing_file)
+        data = self._load()
 
-            cur_tiles = {}
-            num_games = {}
-
-            for row in reader:
-                time_id, num_tiles, _ = row
-                num_tiles = int(num_tiles)
-
-                if cur_tiles.setdefault(time_id, 0) <= num_tiles:
-                    num_games.setdefault(time_id, 0)
-                    num_games[time_id] += 1
-
-                cur_tiles[time_id] = num_tiles
-
-            return num_games
+        return {time_id: TimeStats(*hist["49"]).moves for time_id, hist in data.items()}
 
 
 if __name__ == "__main__":
@@ -178,7 +164,7 @@ if __name__ == "__main__":
 
     timer = AgentTimer()
 
-    # print(timer.get_info())
+    print(f"Num games:\t{timer.get_info()}")
 
     for time_id, times in timer.avg_times().items():
         plt.plot(list(times.keys()), list(times.values()), label=time_id)
