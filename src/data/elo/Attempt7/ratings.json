@@ -144,9 +144,36 @@
       "EtaZero-50-PolicyValRGCN-129-2021-04-07-14-26-48": 1520.0,
       "EtaZero-50-PolicyValRGCN-130-2021-04-08-04-13-21": 1599.9,
       "EtaZero-50-PolicyValRGCN-131-2021-04-09-01-50-45": 1575.8,
-      "EtaZero-50-PolicyValRGCN-132-2021-04-09-21-33-58": 1259.6
+      "EtaZero-50-PolicyValRGCN-132-2021-04-09-21-33-58": 1259.6,
+      "max": 1581.4,
+      "prodigy-bot": 1473.8,
+      "advanced-bot": 1717.5,
+      "expert-bot": 1717.5,
+      "novice-bot": 1717.5,
+      "master-bot": 1597.1
    },
    "history": {
+      "max": {
+         "EtaZero-50-PolicyValRGCN-61-2021-01-29-05-15-42": [3, 4],
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [2, 6],
+         "uct-10000": [0, 2]
+      },
+      "novice-bot": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 1]
+      },
+      "advanced-bot": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 1]
+      },
+      "expert-bot": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 1]
+      },
+      "master-bot": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 2]
+      },
+      "prodigy-bot": {
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [1, 6],
+         "max": [1, 2]
+      },
       "uct-5": {
          "Random Agent": [66, 100],
          "uct-2": [14, 20]
