@@ -83,7 +83,7 @@ class AgentTimer:
 
                 game.make_move(move)
 
-                self._save(agent.time_id, round(duration, 2), remaining_tiles)
+                self._save(agent.time_id, remaining_tiles, round(duration, 2), 1)
 
             print(" .", end="")
 
@@ -165,6 +165,11 @@ if __name__ == "__main__":
     timer = AgentTimer()
 
     print(f"Num games:\t{timer.get_info()}")
+
+    # timer.time(EtaZero(utils.load_net(99, section="Attempt7"), samples_per_move=50), num_games=29)
+    # timer.time(EtaZero(utils.load_net(99, section="Attempt7"), samples_per_move=100), num_games=26)
+    # timer.time(UCTAgent(5000), num_games=29)
+    # timer.time(UCTAgent(10000), num_games=26)
 
     for time_id, times in timer.avg_times().items():
         plt.plot(list(times.keys()), list(times.values()), label=time_id)
