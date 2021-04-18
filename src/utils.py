@@ -10,6 +10,14 @@ def get_model_files(base_path="", section=""):
     }
 
 
+def get_training_files(base_path="", section=""):
+    return {
+        int(path.split("-")[3]): path
+        for path in os.listdir(os.path.join(base_path, "data", "training", section))
+        if path[-4:] == ".csv" and path[:8] == "EtaZero-"
+    }
+
+
 def load_net(i, base_path="", section=""):
     return torch.load(
         os.path.join(
