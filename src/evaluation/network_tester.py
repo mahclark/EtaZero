@@ -5,6 +5,7 @@ from game.sevn import State
 
 if __name__ == "__main__":
     s = State.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
+    s = State.from_str("1/-b-cbgda-g/7.7.7.1eegf2.4d2.4b2.7")
 
     plt.style.use("seaborn")
 

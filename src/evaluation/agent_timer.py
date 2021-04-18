@@ -163,6 +163,7 @@ if __name__ == "__main__":
     from game.sevn import State
 
     timer = AgentTimer()
+    timer.sys_id = "colab"
 
     print(f"Num games:\t{timer.get_info()}")
 
@@ -171,8 +172,9 @@ if __name__ == "__main__":
     # timer.time(UCTAgent(5000), num_games=29)
     # timer.time(UCTAgent(10000), num_games=26)
 
-    for time_id, times in timer.avg_times().items():
-        plt.plot(list(times.keys()), list(times.values()), label=time_id)
+    for i, (time_id, times) in enumerate(timer.avg_times().items()):
+        # plt.plot(list(times.keys()), list(times.values()), label=time_id)
+        plt.axhline(y=max(times.values()), label=time_id, color=f"C{i}")
 
     plt.legend(bbox_to_anchor=(0.05, 1))
     plt.show()

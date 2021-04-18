@@ -388,6 +388,9 @@ class Arena:
             elif split_id[0] == "EtaZero":
                 iteration = int(split_id[3])
                 samples = int(split_id[1])
+                if samples != 50:
+                    break
+
                 xy = series_ratings.setdefault(EtaZero.Series(samples), ([], []))
 
                 xy[0].append(iteration)
@@ -412,7 +415,15 @@ class Arena:
             label=f"Iter {best[1]}: {best[0]}",
         )
 
-        for i, other_id in enumerate(["max", "prodigy-bot"]):
+        for i, other_id in enumerate(
+            [
+                "max",
+                "prodigy-bot",
+                "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
+                "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
+                "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
+            ]
+        ):
             plt.axhline(
                 y=ratings[other_id],
                 label=f"{other_id}: {ratings[other_id]}",
@@ -489,11 +500,40 @@ class LockParser:
 if __name__ == "__main__":
     from agents.network_agent import RawNetwork
 
-    arena = Arena(section="Attempt7")  # , saving_enabled=False)
-    arena.plot_all()
+    arena = Arena(section="Attempt7", saving_enabled=False)
 
-    # arena.battle(
-    #     EtaZero(utils.load_net(127, section="Attempt7"), samples_per_move=50),
-    #     EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50),
-    #     200//2
-    # )
+    p1 = EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50)
+    p2 = EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50)
+    # p1 = RawNetwork(utils.load_net(114, section="Attempt7"))
+    # p2 = RawNetwork(utils.load_net(114, section="Attempt7"))
+
+    total = 0
+    n = 100
+    for i in range(n):
+        if i % 10 == 0:
+            print(f"\n{i/n:.0%}", end="")
+
+        outcome = arena._play_game(Game(7).state, p1, p2)
+        total += outcome
+        print(" +" if outcome else " -", end="")
+
+    print(f"Won {total} of {n} games.")
+
+    # arena.plot_all()
+
+    # for smp in [100, 200, 500]:
+    #     arena.battle(
+    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
+    #         EtaZero(utils.load_net(80, section="Attempt7"), samples_per_move=50),
+    #         20
+    #     )
+    #     arena.battle(
+    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
+    #         EtaZero(utils.load_net(100, section="Attempt7"), samples_per_move=50),
+    #         20
+    #     )
+    #     arena.battle(
+    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
+    #         EtaZero(utils.load_net(127, section="Attempt7"), samples_per_move=50),
+    #         20
+    #     )
