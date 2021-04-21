@@ -11,15 +11,16 @@ def train():
 
 
 def arena():
-    check_call([sys.executable, "-m", "agent_evaluation.arena"], cwd="src")
+    check_call([sys.executable, "-m", "evaluation.arena"], cwd="src")
 
 
 def timer():
-    check_call([sys.executable, "-m", "agent_evaluation.agent_timer"], cwd="src")
+    check_call([sys.executable, "-m", "evaluation.agent_timer"], cwd="src")
 
 
 def testnet():
-    check_call([sys.executable, "-m", "agent_evaluation.network_tester"], cwd="src")
+    check_call([sys.executable, "-m", "evaluation.network_tester"], cwd="src")
+
 
 def fmt():
-    check_call([sys.executable, "-m", "black", "src"])
+    check_call([sys.executable, "-m", "black", "src", "scripts.py"])
