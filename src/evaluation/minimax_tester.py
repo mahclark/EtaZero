@@ -125,4 +125,6 @@ if __name__ == "__main__":
     tester = Tester()
 
     # tester.generate(RandomAgent(), 1)
-    tester.solve(State.from_str("1/-b-cbgda-g/7.7.7.1eegf2.4d2.4b2.7"), verbose=True)
+    tester.solve(
+        State.from_str("1/ba-c-bd-gf/3d3.2ge3.efec3.1agdae1.1b5.7.7"), verbose=True
+    )

@@ -350,10 +350,12 @@ class Arena:
 
         return ratings
 
-    def plot_all(self):
+    def plot_all(self, plot_custom=False):
         self._save()
         plt.style.use("seaborn")
         plt.figure(figsize=(13, 10), facecolor="w")
+
+        plt.axhline(y=500, label="RandomAgent:   500.0", color=f"black")
 
         ratings, _ = LockParser.read(self.elo_rating_path)
 
@@ -366,7 +368,7 @@ class Arena:
             for eid in ratings.keys()
             if eid.split("-")[0] == "EtaZero"
         ]
-        max_iter = 1 if len(eta_iters) == 0 else max(eta_iters)
+        max_iter = 128.5  # 1 if len(eta_iters) == 0 else max(eta_iters)
 
         uct_label_args = dict(x=max_iter, fontsize=8, va="center", ha="right")
 
@@ -388,7 +390,7 @@ class Arena:
             elif split_id[0] == "EtaZero":
                 iteration = int(split_id[3])
                 samples = int(split_id[1])
-                if samples != 50:
+                if samples != 50 or iteration > 125:
                     break
 
                 xy = series_ratings.setdefault(EtaZero.Series(samples), ([], []))
@@ -409,30 +411,25 @@ class Arena:
             x, y = zip(*sorted(zip(x, y)))
             plt.plot(x, y, label=series.label, zorder=1000)
 
-        plt.plot(
-            [0, max(series_ratings[EtaZero.Series(50)][0])],
-            [best[0], best[0]],
-            label=f"Iter {best[1]}: {best[0]}",
-        )
+        if plot_custom:
+            for i, other_id in enumerate(
+                [
+                    "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
+                    "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
+                    "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
+                ]
+            ):
+                plt.scatter(
+                    [113.85],
+                    [ratings[other_id]],
+                    label=f"{other_id[:11]} (iteration 114):   {ratings[other_id]}",
+                    color=f"C{i+1}",
+                )
 
-        for i, other_id in enumerate(
-            [
-                "max",
-                "prodigy-bot",
-                "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
-                "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
-                "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
-            ]
-        ):
-            plt.axhline(
-                y=ratings[other_id],
-                label=f"{other_id}: {ratings[other_id]}",
-                color=f"C{i+2}",
-            )
-
+        plt.ylim([450, 2050])
         plt.ylabel("Elo Rating")
         plt.xlabel("Training Iteration")
-        plt.legend(loc="lower center")  # , bbox_to_anchor=(.95, .5))
+        plt.legend()  # loc="lower center", facecolor='white', framealpha=1)  # , bbox_to_anchor=(.95, .5))
         plt.show()
 
 
@@ -502,38 +499,4 @@ if __name__ == "__main__":
 
     arena = Arena(section="Attempt7", saving_enabled=False)
 
-    p1 = EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50)
-    p2 = EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=50)
-    # p1 = RawNetwork(utils.load_net(114, section="Attempt7"))
-    # p2 = RawNetwork(utils.load_net(114, section="Attempt7"))
-
-    total = 0
-    n = 100
-    for i in range(n):
-        if i % 10 == 0:
-            print(f"\n{i/n:.0%}", end="")
-
-        outcome = arena._play_game(Game(7).state, p1, p2)
-        total += outcome
-        print(" +" if outcome else " -", end="")
-
-    print(f"Won {total} of {n} games.")
-
-    # arena.plot_all()
-
-    # for smp in [100, 200, 500]:
-    #     arena.battle(
-    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
-    #         EtaZero(utils.load_net(80, section="Attempt7"), samples_per_move=50),
-    #         20
-    #     )
-    #     arena.battle(
-    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
-    #         EtaZero(utils.load_net(100, section="Attempt7"), samples_per_move=50),
-    #         20
-    #     )
-    #     arena.battle(
-    #         EtaZero(utils.load_net(114, section="Attempt7"), samples_per_move=smp),
-    #         EtaZero(utils.load_net(127, section="Attempt7"), samples_per_move=50),
-    #         20
-    #     )
+    arena.plot_all()
