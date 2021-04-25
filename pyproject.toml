@@ -25,13 +25,14 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
+fmt = "scripts:fmt"
 play = "scripts:play"
 train = "scripts:train"
 arena = "scripts:arena"
 timer = "scripts:timer"
 testnet = "scripts:testnet"
-fmt = "scripts:fmt"
-
+minimax = "scripts:minimax"
+timeelo = "scripts:timeelo"
 
 [tool.black]
 line-length = 88
