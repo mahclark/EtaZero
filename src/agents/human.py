@@ -35,7 +35,3 @@ class Human(Agent):
             self.user_input.signal.clear()
             if move in self.game.get_moves():
                 return move
-
-            print("Invalid selection: " + str(self.user_input.selected))
-            print("Move: " + str([tile for tile in move]))
-            print("Available: " + str([list(move) for move in self.game.get_moves()]))

@@ -61,6 +61,7 @@ class UserInput:
         # Signal to unblock the human agent class, either when the user submits a move or the program is terminated.
         self.signal = threading.Event()
         self.selected = {}  # All tiles selected by the user.
+        self.selected_col = None  # The colour of the selected tile(s)
         # Flag telling the human agent class whether to terminate or not once the signal is set.
         self.terminate = False
 
@@ -156,7 +157,15 @@ def play_game(
                     pos = screen_to_board(mx, my)
                     tile_size = board_surf.get_size()[0] // base
                     tile = (int(pos[1] / tile_size), int(pos[0] / tile_size))
-                    user_input.selected[tile] = not user_input.selected.get(tile, False)
+
+                    if tile in game.get_takable():
+                        if game.get_at(tile) != user_input.selected_col:
+                            user_input.selected.clear()
+
+                        user_input.selected_col = game.get_at(tile)
+                        user_input.selected[tile] = not user_input.selected.get(
+                            tile, False
+                        )
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_SPACE:
@@ -177,6 +186,7 @@ def play_game(
         if animations.done() and game.state.outcome == 0 and agent_future.done():
 
             user_input.selected.clear()
+            user_input.selected_col = None
             move, time_taken = agent_future.result()
             for tile in move:
                 animations.animate(tile, game.get_at(tile))
@@ -427,25 +437,14 @@ if __name__ == "__main__":
     """
 
     """ Game state from iOS App Sevn
-    state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
+    state, *colors = screen_parser.get_starting_state()
     game = Game(state=state)
+    play_game(Game(state=state), player1, player2, *colors)
     """
 
-    # net = utils.load_net(56)
+    game = Game(7)
 
-    # state, tile_colors, top_col, bot_col = screen_parser.get_starting_state()
-    game = Game.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
-
-    player2 = EtaZero(
-        utils.load_net(
-            max(utils.get_model_files(section="Attempt7")), section="Attempt7"
-        ),
-        samples_per_move=2000,
-    )
-    # # player2 = Human(user_input)
-    # player1 = Human(user_input)  # UCTAgent(5000)
-
-    player1 = Human(user_input)  # UCTAgent(1000)
-    # player2 = Human(user_input)#UCTAgentOld(200)
+    player1 = Human(user_input)
+    player2 = EtaZero(utils.load_net(80, section="Attempt7"), samples_per_move=50)
 
     play_game(game, player1, player2)

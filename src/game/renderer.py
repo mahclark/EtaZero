@@ -1,4 +1,5 @@
 import pygame
+from pygame import gfxdraw
 
 
 class Renderer:
@@ -21,11 +22,7 @@ class Renderer:
             for col in range(board.base):
                 tile_size = surf.get_size()[0] // board.base
                 thickness = 1 if tile_size <= 25 else 2
-                if (
-                    selected
-                    and selected.get((row, col))
-                    and (row, col) in board.get_takable()
-                ):
+                if selected is not None and (row, col) in board.get_takable():
                     pygame.draw.rect(
                         surf,
                         [255, 255, 255],
@@ -59,6 +56,23 @@ class Renderer:
                             tile_size - 4 * thickness - 2,
                         ),
                     )
+
+                    if (
+                        selected is not None
+                        and selected.get((row, col))
+                        and (row, col) in board.get_takable()
+                    ):
+                        r, g, b = colors[tile]
+                        for draw_circle in [gfxdraw.aacircle, gfxdraw.filled_circle]:
+                            draw_circle(
+                                surf,
+                                int(tile_size * (col + 0.5)),
+                                int(tile_size * (row + 0.5)),
+                                tile_size // 6,
+                                Renderer.default_colors[5]
+                                if (r * 0.299 + g * 0.587 + b * 0.114) > 186
+                                else [255, 255, 255],
+                            )
 
             if animated_tiles:
                 for pos, color, lerp in animated_tiles:
