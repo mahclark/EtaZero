@@ -146,8 +146,8 @@
       "EtaZero-50-PolicyValRGCN-131-2021-04-09-01-50-45": 1575.8,
       "EtaZero-50-PolicyValRGCN-132-2021-04-10-23-22-58": 1632.9,
       "master-bot": 1597.1,
-      "max": 1529.3,
-      "prodigy-bot": 1467.8,
+      "max": 1476.6,
+      "prodigy-bot": 1462.1,
       "novice-bot": 1717.5,
       "advanced-bot": 1717.5,
       "expert-bot": 1717.5,
@@ -167,6 +167,7 @@
       "max": {
          "EtaZero-50-PolicyValRGCN-61-2021-01-29-05-15-42": [7, 10],
          "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [2, 10],
+         "EtaZero-50-PolicyValRGCN-80-2021-02-19-03-25-08": [2, 10],
          "uct-10000": [4, 10]
       },
       "novice-bot": {
@@ -182,7 +183,8 @@
          "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 2]
       },
       "prodigy-bot": {
-         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [3, 18],
+         "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [4, 20],
+         "EtaZero-50-PolicyValRGCN-80-2021-02-19-03-25-08": [4, 10],
          "max": [4, 10]
       },
       "mum": {
