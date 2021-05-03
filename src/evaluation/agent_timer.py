@@ -162,24 +162,30 @@ if __name__ == "__main__":
     import numpy as np
     from game.sevn import State
 
-    plt.style.use("seaborn")
+    plt.style.use("seaborn-whitegrid")
+    plt.figure(figsize=(6.3, 4))
 
     timer = AgentTimer()
     timer.sys_id = "colab"
 
     print(f"Num games:\t{timer.get_info()}")
 
-    for i, (time_id, times) in enumerate(timer.avg_times().items()):
-        if time_id in [
-            "EtaZero-50",
-            "EtaZero-100",
-            "EtaZero-200",
-            "EtaZero-500",
-            "uct-10000",
-            "uct-1000",
-        ]:
-            plt.plot(list(times.keys()), list(times.values()), label=time_id)
+    agents = [
+        "uct-10000",
+        "EtaZero-500",
+        "EtaZero-200",
+        "uct-1000",
+        "EtaZero-100",
+        "EtaZero-50",
+    ]
 
+    for i, (time_id, times) in enumerate(
+        zip(agents, [timer.avg_times()[agent] for agent in agents])
+    ):
+        plt.plot(list(times.keys()), list(times.values()), label=time_id)
+
+    plt.xlim([0, 50])
+    plt.ylim([0, 30])
     plt.xlabel("Remaining Tiles")
     plt.ylabel("Average Move Time (s)")
     plt.legend()

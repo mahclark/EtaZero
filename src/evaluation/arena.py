@@ -352,10 +352,8 @@ class Arena:
 
     def plot_all(self, plot_custom=False):
         self._save()
-        plt.style.use("seaborn")
-        plt.figure(figsize=(13, 10), facecolor="w")
-
-        plt.axhline(y=500, label="RandomAgent:   500.0", color=f"black")
+        plt.style.use("seaborn-whitegrid")
+        plt.figure(figsize=(6.3, 4.85))
 
         ratings, _ = LockParser.read(self.elo_rating_path)
 
@@ -372,11 +370,14 @@ class Arena:
 
         uct_label_args = dict(x=max_iter, fontsize=8, va="center", ha="right")
 
+        # ucts = [f"uct-{smps}" for smps in [5, 10, 50, 100, 500, 1000, 5000, 10000]]
+        ucts = list(map("uct-{}".format, [5, 10, 50, 100, 500, 1000, 5000, 10000]))
+
         for elo_id, rating in ratings.items():
             split_id = elo_id.split("-")
 
             # UCT lines and white boxes
-            if split_id[0] == "uct":
+            if elo_id in ucts:
                 facecol = plt.gca().get_facecolor()
                 plt.axhline(y=rating, linestyle=":")
                 plt.text(
@@ -404,32 +405,46 @@ class Arena:
         for elo_id, rating in ratings.items():
             split_id = elo_id.split("-")
 
-            if split_id[0] == "uct":
+            if elo_id in ucts:
                 plt.text(y=rating, s=elo_id, **uct_label_args)
 
         for series, (x, y) in series_ratings.items():
             x, y = zip(*sorted(zip(x, y)))
             plt.plot(x, y, label=series.label, zorder=1000)
 
+        plt.axhline(y=500, label="RandomAgent:   500.0", color=f"black")
+
         if plot_custom:
             for i, other_id in enumerate(
                 [
-                    "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
-                    "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
+                    # "max","prodigy-bot",
                     "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
+                    "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
+                    "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
                 ]
             ):
-                plt.scatter(
-                    [113.85],
-                    [ratings[other_id]],
-                    label=f"{other_id[:11]} (iteration 114):   {ratings[other_id]}",
-                    color=f"C{i+1}",
-                )
+                if "EtaZero" in other_id:
+                    plt.scatter(
+                        [113.85],
+                        [ratings[other_id]],
+                        label=f"{other_id[:11]} (iter. 114):   {ratings[other_id]}",
+                        color=f"C{i+1}",
+                        marker="x",
+                    )
+                else:
+                    plt.axhline(
+                        y=ratings[other_id],
+                        label=f"{other_id}:   {ratings[other_id]}",
+                        color=f"C{i+1}",
+                    )
 
         plt.ylim([450, 2050])
+        plt.xlim([0, 133])
         plt.ylabel("Elo Rating")
         plt.xlabel("Training Iteration")
-        plt.legend()  # loc="lower center", facecolor='white', framealpha=1)  # , bbox_to_anchor=(.95, .5))
+        plt.legend(
+            loc="upper left"
+        )  # , facecolor='white', framealpha=1)  # , bbox_to_anchor=(.95, .5))
         plt.show()
 
 
@@ -497,6 +512,6 @@ class LockParser:
 if __name__ == "__main__":
     from agents.network_agent import RawNetwork
 
-    arena = Arena(section="Attempt7", saving_enabled=False)
+    arena = Arena(section="Attempt7")#, saving_enabled=False)
 
-    arena.plot_all()
+    arena.plot_all(True)

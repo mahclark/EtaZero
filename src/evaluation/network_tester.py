@@ -7,8 +7,8 @@ if __name__ == "__main__":
     s = State.from_str("2/cc-eac/5.bdeca.2aae.2e2.5")
     s = State.from_str("1/-b-cbgda-g/7.7.7.1eegf2.4d2.4b2.7")
 
-    plt.style.use("seaborn")
-    plt.figure(figsize=(12, 2))
+    plt.style.use("seaborn-whitegrid")
+    plt.figure(figsize=(6.3, 1))
 
     ps = []
     vs = []
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     for i, (p, move) in enumerate(zip(np.array(ps).T, s.get_moves())):
         plt.plot(p, label=f"Policy ({tile_names[i]} tile)", color=tile_cols[i])
 
-    plt.plot(vs, label="Value", color="C1")  # , linestyle=(0, (1, 1)))
+    plt.plot(vs, label="Value", color="C2")  # , linestyle=(0, (1, 1)))
 
     plt.xlabel("Iteration")
     plt.ylabel("Network Output Value")
