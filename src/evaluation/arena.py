@@ -350,7 +350,14 @@ class Arena:
 
         return ratings
 
-    def plot_all(self, plot_custom=False):
+    def plot_all(self, custom_ids=None):
+        if custom_ids is None:
+            custom_ids = [
+                "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
+                "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
+                "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
+            ]
+        
         self._save()
         plt.style.use("seaborn-whitegrid")
         plt.figure(figsize=(6.3, 4.85))
@@ -414,15 +421,8 @@ class Arena:
 
         plt.axhline(y=500, label="RandomAgent:   500.0", color=f"black")
 
-        if plot_custom:
-            for i, other_id in enumerate(
-                [
-                    # "max","prodigy-bot",
-                    "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
-                    "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
-                    "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
-                ]
-            ):
+        if custom_ids:
+            for i, other_id in enumerate(custom_ids):
                 if "EtaZero" in other_id:
                     plt.scatter(
                         [113.85],
@@ -512,6 +512,13 @@ class LockParser:
 if __name__ == "__main__":
     from agents.network_agent import RawNetwork
 
-    arena = Arena(section="Attempt7")#, saving_enabled=False)
+    arena = Arena(section="Attempt7", saving_enabled=False)
 
-    arena.plot_all(True)
+    arena.plot_all()
+
+    # arena.battle(
+    #     RawNetwork(utils.load_net(114, section="Attempt7")),
+    #     RandomAgent(),
+    #     game_pairs=50,
+    #     base=15
+    # )
