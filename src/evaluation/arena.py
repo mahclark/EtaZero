@@ -360,7 +360,7 @@ class Arena:
         
         self._save()
         plt.style.use("seaborn-whitegrid")
-        plt.figure(figsize=(6.3, 4.85))
+        plt.figure(figsize=(9, 6))
 
         ratings, _ = LockParser.read(self.elo_rating_path)
 
