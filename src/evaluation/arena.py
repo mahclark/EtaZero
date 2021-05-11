@@ -357,7 +357,7 @@ class Arena:
                 "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
                 "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
             ]
-        
+
         self._save()
         plt.style.use("seaborn-whitegrid")
         plt.figure(figsize=(9, 6))

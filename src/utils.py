@@ -27,19 +27,10 @@ def load_net(i, base_path="", section=""):
 
 
 def print_latex_board(state):
-    cols = [
-        "yel",
-        "pin",
-        "bro",
-        "pur",
-        "whi",
-        "bla",
-        "blu"
-    ]
+    cols = ["yel", "pin", "bro", "pur", "whi", "bla", "blu"]
 
     for y, row in enumerate(state.board.board):
         for x, tile in enumerate(row):
             if tile >= 0:
                 print(f"\\draw{cols[tile]}{{({x},{y})}}")
         print()
-

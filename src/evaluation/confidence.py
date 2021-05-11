@@ -38,8 +38,8 @@ if __name__ == "__main__":
     plt.style.use("seaborn-whitegrid")
     plt.figure(figsize=(6.3, 4))
 
-    n = 40#160
-    w = 12#113
+    n = 40  # 160
+    w = 12  # 113
 
     x = []
     y = []
@@ -62,9 +62,10 @@ if __name__ == "__main__":
     plt.xlim([0, 1])
     plt.show()
 
-    elo_diff = -(1462.1-1929.8)#(1994.9 - 1564.1)
+    elo_diff = -(1462.1 - 1929.8)  # (1994.9 - 1564.1)
+
     def exp_win(diff):
-        return 1/(1 + 10**(diff/400))
+        return 1 / (1 + 10 ** (diff / 400))
 
     print(f"{exp_win(elo_diff):.1%} +- {exp_win(elo_diff + y95/2):.1%}")
     print(f"{exp_win(elo_diff):.1%} +- {exp_win(elo_diff - y95/2):.1%}")

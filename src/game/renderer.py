@@ -91,7 +91,7 @@ class Renderer:
                                 int(tile_size * (row + 0.5)),
                             ),
                             int(tile_size * 0.3),
-                            thickness-1#tile_size // 20,
+                            thickness - 1,  # tile_size // 20,
                         )
 
                         # pygame.draw.rect(
