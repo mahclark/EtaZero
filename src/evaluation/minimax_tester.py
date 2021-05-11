@@ -122,9 +122,12 @@ class Tester:
 
 
 if __name__ == "__main__":
+    import time
+
     tester = Tester()
 
-    # tester.generate(RandomAgent(), 1)
+    t = time.perf_counter()
     tester.solve(
         State.from_str("1/ba-c-bd-gf/3d3.2ge3.efec3.1agdae1.1b5.7.7"), verbose=True
     )
+    print(f"Duration: {time.perf_counter() - t:.2f}")
