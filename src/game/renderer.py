@@ -94,29 +94,6 @@ class Renderer:
                             thickness - 1,  # tile_size // 20,
                         )
 
-                        # pygame.draw.rect(
-                        #     surf,
-                        #     Renderer.default_colors[5]
-                        #     if (r * 0.299 + g * 0.587 + b * 0.114) > 186
-                        #     else [255, 255, 255],
-                        #     (round(tile_size * (col + 0.4)),
-                        #      round(tile_size * (row + 0.4)),
-                        #      tile_size*.2,
-                        #      tile_size*.2)
-                        # )
-
-                        # for draw_circle in [gfxdraw.aacircle, gfxdraw.filled_circle]:
-                        #     draw_circle(
-                        #         surf,
-                        #         int(tile_size * (col + 0.5)),
-                        #         int(tile_size * (row + 0.5)),
-                        #         int(radius),
-                        #         colors[tile] if i == 1 else
-                        #         (Renderer.default_colors[5]
-                        #         if (r * 0.299 + g * 0.587 + b * 0.114) > 186
-                        #         else [255, 255, 255]),
-                        #     )
-
             if animated_tiles:
                 for pos, color, lerp in animated_tiles:
                     pygame.draw.rect(
