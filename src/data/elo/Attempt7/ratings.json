@@ -162,7 +162,7 @@
       "EtaZero-50-PolicyValRGCN-137-2021-04-14-09-20-36": 1645.6,
       "EtaZero-50-PolicyValRGCN-138-2021-04-14-22-31-11": 1651.2,
       "EtaZero-50-PolicyValRGCN-139-2021-04-15-13-13-35": 1599.5,
-      "beginner": 1177.2
+      "beginner": 1183.1
    },
    "history": {
       "max": {
@@ -172,9 +172,9 @@
          "uct-10000": [4, 10]
       },
       "beginner": {
-         "EtaZero-50-PolicyValRGCN-10-2021-01-26-09-04-08": [5, 20],
-         "EtaZero-50-PolicyValRGCN-50-2021-01-28-05-15-31": [2, 10],
-         "EtaZero-50-PolicyValRGCN-80-2021-02-19-03-25-08": [2, 14]
+         "EtaZero-50-PolicyValRGCN-10-2021-01-26-09-04-08": [6, 22],
+         "EtaZero-50-PolicyValRGCN-50-2021-01-28-05-15-31": [3, 12],
+         "EtaZero-50-PolicyValRGCN-80-2021-02-19-03-25-08": [2, 18]
       },
       "novice-bot": {
          "EtaZero-50-PolicyValRGCN-127-2021-04-05-23-32-52": [0, 1]
