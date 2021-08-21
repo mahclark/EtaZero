@@ -4,6 +4,8 @@ from agents.agent import Agent, Series
 from math import sqrt, log
 from tree_search import TreeSearch
 
+def print(*a, **k):
+    pass
 
 class UCTAgent(Agent):
     class Series(Series):
@@ -51,8 +53,17 @@ class UCTAgent(Agent):
             self.clean(self.game.state.parent, except_state=self.game.state)
 
         self.move_evals = 0
-        while self.move_evals < self.samples_per_move:
+        # while self.move_evals < self.samples_per_move:
+        for _ in range(self.samples_per_move):
             self.playout()
+
+            print(f"visits ({len(self.visits)}):")
+            for k, v in self.visits.items():
+                print(f"\t{str(k):>30} -> {v}")
+            print(f"wins ({len(self.wins)}):")
+            for k, v in self.wins.items():
+                print(f"\t{str(k):>30} -> {v}")
+            print()
 
         move = self._select()
 
@@ -65,6 +76,8 @@ class UCTAgent(Agent):
 
         self.clean(self.game.state, except_state=next_state)
         self.game.state.free(except_child=next_state)
+
+        print(f"{self.move_evals = }")
 
         return move
 
@@ -87,8 +100,8 @@ class UCTAgent(Agent):
         self.visits[self.game.state] = self.visits.get(self.game.state, 0) + 1
         self.move_evals += 1
 
-        if self.move_evals > self.samples_per_move:
-            return None
+        # if self.move_evals > self.samples_per_move:
+        #     return None
 
         move = self._select()
 
@@ -132,11 +145,15 @@ class UCTAgent(Agent):
             self.game.undo_move()
 
             scores.append((score, move))
+            print(f"{move} {score:.2f}", end="\t")
+        print()
 
         best_score, _ = max(scores)
         best_moves = [move for score, move in scores if score == best_score]
 
-        return random.choice(best_moves)
+        mv = random.choice(best_moves)
+        # print(best_moves, mv)
+        return mv
 
     def _get_heuristic(self):
         """
@@ -156,6 +173,8 @@ class UCTAgent(Agent):
             win_ratio = 0.5
         else:
             win_ratio = 1 - self.wins.get(state, 0) / self.visits.get(state)
+        
+        print(win_ratio + self.C * sqrt(log(N) / self.visits.get(state, 1)), win_ratio, self.visits.get(state.parent), self.visits.get(state), state.parent)
 
         return win_ratio + self.C * sqrt(log(N) / self.visits.get(state, 1))
 

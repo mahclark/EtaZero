@@ -417,7 +417,7 @@ class Arena:
         if plot_custom:
             for i, other_id in enumerate(
                 [
-                    # "max","prodigy-bot",
+                    "aidan","max","prodigy-bot","aalia",
                     "EtaZero-500-PolicyValRGCN-114-2021-03-26-07-31-12",
                     "EtaZero-200-PolicyValRGCN-114-2021-03-26-07-31-12",
                     "EtaZero-100-PolicyValRGCN-114-2021-03-26-07-31-12",
@@ -512,6 +512,12 @@ class LockParser:
 if __name__ == "__main__":
     from agents.network_agent import RawNetwork
 
-    arena = Arena(section="Attempt7")#, saving_enabled=False)
+    arena = Arena(section="Attempt7", saving_enabled=False)
 
-    arena.plot_all(True)
+    # arena.plot_all(True)
+
+    from agents.mcts_agent import UCT2
+
+    t = time.perf_counter()
+    arena.battle(UCT2(10), UCTAgent(10), game_pairs=50)
+    print(f"{time.perf_counter() - t:.2f}s")

@@ -441,10 +441,19 @@ if __name__ == "__main__":
     game = Game(state=state)
     play_game(Game(state=state), player1, player2, *colors)
     """
+    
+    from agents.mcts_agent import UCT2
 
-    game = Game(7)
+    game = Game(3)
+    # game = Game.from_str("1/aaaaa/dccba.beaeb.caede.cdbad.eabcd")
+    game = Game.from_str("1/a-cab-b/abc2.5.5.5.5")
 
-    player1 = Human(user_input)
-    player2 = EtaZero(utils.load_net(80, section="Attempt7"), samples_per_move=50)
+    player2 = Human(user_input)
+    # player2 = EtaZero(utils.load_net(127, section="Attempt7"), samples_per_move=200)
+    player1 = UCT2(5)
+    # player1 = UCTAgent(5)
+
+    # game = game.from_str("1/aaaaaaa/dceagca.bfabedg.gcafade.cdeegae.gbfbfba.gdccfbd.bfcdfge")
+    # player1, player2 = player2, player1
 
     play_game(game, player1, player2)
